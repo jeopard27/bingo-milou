@@ -1,6 +1,30 @@
 /**
  * BINGO MILOU — Couche Base de Données (lowdb JSON)
  */
+function getProchainSamedi() {
+  const now = new Date();
+  const jour = now.getDay(); // 0=dim, 6=sam
+  const heureLimit = 20.5;   // 20h30
+  const heureActuelle = now.getHours() + now.getMinutes() / 60;
+
+  // Jours jusqu'au prochain samedi
+  let joursRestants = (6 - jour + 7) % 7;
+  
+  // Si on EST samedi mais après 20h30 → samedi prochain
+  if (joursRestants === 0 && heureActuelle >= heureLimit) {
+    joursRestants = 7;
+  }
+  // Si on est pile samedi avant 20h30 → c'est ce soir
+  if (joursRestants === 0) joursRestants = 0;
+
+  const prochain = new Date(now);
+  prochain.setDate(now.getDate() + joursRestants);
+
+  const mois = ['janvier','février','mars','avril','mai','juin',
+                 'juillet','août','septembre','octobre','novembre','décembre'];
+
+  return `Samedi ${prochain.getDate()} ${mois[prochain.getMonth()]} ${prochain.getFullYear()} — 21h00`;
+}
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
 const path = require('path');
@@ -26,7 +50,7 @@ db.defaults({
   config: {
     prixPack1: 2.00, prixPack5: 9.00, prixPack10: 16.00, prixPack25: 35.00,
     partJackpot: 0.60, partFrais: 0.40,
-    prochainTirage: 'Samedi 07 mars 2026 — 21h00',
+    prochainTirage: getProchainSamedi(),
     tirageNumero: 48,
   }
 }).write();
