@@ -58,7 +58,12 @@ router.post('/register', async (req, res) => {
     });
 
     // Email de vérification (non bloquant)
-    try { await Emails.bienvenue(user, emailToken); } catch (e) { console.warn('Email non envoyé:', e.message); }
+    try { 
+  await Emails.bienvenue(user, emailToken); 
+  console.log('Email de bienvenue envoyé à:', user.email);
+} catch (e) { 
+  console.error('ERREUR EMAIL:', e.message, e.code);
+}
 
     const token = signToken(user.id);
     res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7*24*60*60*1000 });
