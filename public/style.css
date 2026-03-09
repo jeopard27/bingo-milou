@@ -1,0 +1,262 @@
+:root {
+  --gold:#FFD700; --gold2:#FFA500; --gold3:#FF8C00;
+  --red:#E63946; --green:#2DC653; --blue:#4895EF; --purple:#7B2FBE;
+  --bg:#07050F; --card:#160F2D; --card2:#1E1640; --card3:#251B50;
+  --border:rgba(255,215,0,0.15); --border2:rgba(255,255,255,0.06);
+  --text:#F4F0FF; --muted:#8B7FC0; --muted2:#5A5080;
+  --glow-gold:0 0 40px rgba(255,165,0,0.35);
+  --glow-green:0 0 20px rgba(44,198,83,0.35);
+  --shadow:0 20px 60px rgba(0,0,0,0.6);
+  --radius:20px; --radius-sm:12px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* Atmosphere */
+.atmosphere{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.stars{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 10% 15%,rgba(255,255,255,0.4) 0%,transparent 100%),radial-gradient(1px 1px at 30% 60%,rgba(255,255,255,0.3) 0%,transparent 100%),radial-gradient(1px 1px at 50% 25%,rgba(255,255,255,0.5) 0%,transparent 100%),radial-gradient(1px 1px at 70% 80%,rgba(255,255,255,0.3) 0%,transparent 100%),radial-gradient(1px 1px at 85% 40%,rgba(255,255,255,0.4) 0%,transparent 100%),radial-gradient(2px 2px at 55% 55%,rgba(255,215,0,0.5) 0%,transparent 100%),radial-gradient(1px 1px at 20% 85%,rgba(255,215,0,0.4) 0%,transparent 100%);animation:twinkle 4s ease-in-out infinite alternate}
+@keyframes twinkle{0%{opacity:.6}100%{opacity:1}}
+.float-ball{position:absolute;border-radius:50%;opacity:0;animation:floatUp linear infinite}
+@keyframes floatUp{0%{transform:translateY(105vh) rotate(0);opacity:0}5%{opacity:.07}95%{opacity:.07}100%{transform:translateY(-10vh) rotate(1080deg);opacity:0}}
+
+/* Layout */
+.page{position:relative;z-index:1}
+.container{max-width:1180px;margin:0 auto;padding:0 20px}
+
+/* Header */
+.site-header{padding:20px;background:rgba(7,5,15,0.6);backdrop-filter:blur(12px);border-bottom:1px solid var(--border2)}
+.header-inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.logo{font-family:'Fredoka One',cursive;font-size:clamp(1.8rem,4vw,3rem);background:linear-gradient(145deg,#FFE066,#FFD700,#FF8C00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 20px rgba(255,165,0,0.5));animation:logoBreathe 4s ease-in-out infinite}
+@keyframes logoBreathe{0%,100%{filter:drop-shadow(0 0 20px rgba(255,165,0,0.5))}50%{filter:drop-shadow(0 0 40px rgba(255,165,0,0.9))}}
+.logo-tag{font-family:'Baloo 2',cursive;font-size:0.8rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--muted)}
+.header-auth{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* Nav */
+.site-nav{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:14px 20px;position:sticky;top:0;z-index:100;background:rgba(7,5,15,0.88);backdrop-filter:blur(20px);border-bottom:1px solid var(--border2)}
+.nav-btn{font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;padding:9px 20px;border-radius:50px;border:1px solid transparent;background:transparent;color:var(--muted);cursor:pointer;transition:all .25s}
+.nav-btn:hover{color:var(--text);background:var(--card2)}
+.nav-btn.active{background:linear-gradient(135deg,var(--gold3),var(--gold));color:#1A0A00;box-shadow:var(--glow-gold)}
+
+/* Jackpot Hero */
+.jackpot-hero{max-width:1180px;margin:0 auto;padding:24px 20px}
+.jackpot-card{background:linear-gradient(135deg,rgba(30,10,0,.92),rgba(60,30,0,.92));border:2px solid var(--gold2);border-radius:28px;padding:28px 36px;text-align:center;position:relative;overflow:hidden;box-shadow:var(--glow-gold),var(--shadow)}
+.jackpot-card::after{content:'';position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,215,0,.05),transparent);animation:shimmer 4s ease-in-out infinite}
+@keyframes shimmer{0%{left:-100%}100%{left:200%}}
+.jackpot-label{font-family:'Baloo 2',cursive;font-size:.8rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--gold2);margin-bottom:8px}
+.jackpot-amount{font-family:'Fredoka One',cursive;font-size:clamp(3rem,8vw,6rem);line-height:1;background:linear-gradient(180deg,#FFE566,#FFD700,#FF8C00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 20px rgba(255,165,0,.8));animation:jpPulse 2.5s ease-in-out infinite}
+@keyframes jpPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+.jackpot-sub{font-size:.88rem;color:var(--muted);margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:50px;padding:3px 13px;font-size:.78rem;font-weight:800;margin:0 4px}
+.pill-green{background:rgba(44,198,83,.15);border:1px solid rgba(44,198,83,.4);color:var(--green)}
+.pill-gold{background:rgba(255,165,0,.15);border:1px solid rgba(255,165,0,.4);color:var(--gold2)}
+
+/* Stats Row */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;max-width:1180px;margin:0 auto;padding:0 20px 20px}
+.stat-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:16px 18px;text-align:center;transition:all .3s;position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold3),var(--gold));opacity:0;transition:opacity .3s}
+.stat-card:hover{transform:translateY(-4px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.stat-card:hover::after{opacity:1}
+.stat-icon{font-size:1.7rem;margin-bottom:5px}
+.stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:3px}
+.stat-val{font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--gold)}
+.live-tag{display:inline-flex;align-items:center;gap:5px;background:rgba(230,57,70,.15);border:1px solid rgba(230,57,70,.4);color:var(--red);border-radius:50px;padding:3px 10px;font-size:.72rem;font-weight:800}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 1.2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* Sections */
+.section{display:none;max-width:1180px;margin:0 auto;padding:10px 20px 60px;animation:fadeIn .4s ease}
+.section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.section-head{display:flex;align-items:center;gap:14px;margin:24px 0 18px}
+.section-head h2{font-family:'Fredoka One',cursive;font-size:1.7rem;color:var(--gold);white-space:nowrap}
+.section-line{flex:1;height:2px;background:linear-gradient(to right,rgba(255,165,0,.3),transparent);border-radius:2px}
+
+/* Boutique — Packs */
+.packs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:18px;margin-bottom:24px}
+.pack-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:24px;cursor:pointer;transition:all .35s cubic-bezier(.34,1.2,.64,1);position:relative;overflow:hidden}
+.pack-card:hover{transform:translateY(-8px) scale(1.01);border-color:var(--gold2);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 30px rgba(255,165,0,.2)}
+.pack-card.featured{border-color:var(--gold2);background:linear-gradient(160deg,var(--card),rgba(60,35,0,.5))}
+.pack-badge{position:absolute;top:14px;right:14px;font-size:.68rem;font-weight:900;letter-spacing:1px;padding:4px 10px;border-radius:50px;text-transform:uppercase}
+.pack-badge.pop{background:var(--red);color:white}
+.pack-badge.best{background:linear-gradient(135deg,var(--gold3),var(--gold));color:#1A0A00}
+.pack-emoji{font-size:2.4rem;margin-bottom:10px}
+.pack-name{font-family:'Fredoka One',cursive;font-size:1.35rem;color:var(--gold);margin-bottom:3px}
+.pack-qty{font-size:.82rem;color:var(--muted);margin-bottom:14px}
+.pack-preview{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;margin-bottom:16px;border-radius:6px;overflow:hidden}
+.pc{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:.44rem;font-weight:900;border-radius:2px}
+.pc.on{background:var(--gold);color:#1A0A00}
+.pc.off{background:rgba(255,255,255,.04)}
+.pack-price{font-family:'Fredoka One',cursive;font-size:2.1rem;margin-bottom:4px}
+.pack-price-unit{font-size:.9rem;color:var(--muted);font-family:'Nunito',sans-serif;font-weight:600}
+.pack-winback{font-size:.8rem;color:var(--green);margin-bottom:16px;font-weight:700}
+.btn-buy{display:block;width:100%;text-align:center;background:linear-gradient(135deg,var(--gold3),var(--gold));color:#1A0A00;border:none;border-radius:50px;padding:13px;font-family:'Nunito',sans-serif;font-size:.95rem;font-weight:900;cursor:pointer;transition:all .3s}
+.btn-buy:hover{transform:scale(1.03);box-shadow:var(--glow-gold)}
+.info-bar{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:14px 18px;text-align:center;font-size:.8rem;color:var(--muted);line-height:1.8}
+
+/* Grilles */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.filter-btn{background:var(--card);border:1px solid var(--border2);color:var(--muted);font-family:'Nunito',sans-serif;font-weight:700;font-size:.82rem;padding:8px 16px;border-radius:50px;cursor:pointer;transition:all .2s}
+.filter-btn.active,.filter-btn:hover{background:var(--card3);border-color:var(--gold);color:var(--gold)}
+.grille-item{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:20px;display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;margin-bottom:12px;transition:all .3s;position:relative;overflow:hidden}
+.grille-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:4px 0 0 4px}
+.grille-item.en_attente::before{background:var(--blue)}
+.grille-item.gagnant::before{background:var(--green)}
+.grille-item.perdu::before{background:var(--muted2)}
+.grille-item.gagnant{border-color:rgba(44,198,83,.4);animation:winPulse 3s ease-in-out infinite}
+@keyframes winPulse{0%,100%{box-shadow:0 0 20px rgba(44,198,83,.3)}50%{box-shadow:0 0 40px rgba(44,198,83,.5)}}
+.grille-id{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--gold)}
+.grille-date{font-size:.74rem;color:var(--muted);margin-top:3px}
+.grille-nums{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
+.gn{aspect-ratio:1;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:900;background:var(--card2);color:var(--muted2);transition:all .3s}
+.gn.sel{background:var(--card3);color:var(--text)}
+.gn.hit{background:var(--gold);color:#1A0A00;box-shadow:0 0 5px rgba(255,215,0,.5)}
+.gn.win-hit{background:var(--green);color:#0a1a0a}
+.grille-right{text-align:center;min-width:90px}
+.hit-count{font-family:'Fredoka One',cursive;font-size:1.9rem;color:var(--gold)}
+.hit-max{font-size:.8rem;color:var(--muted)}
+.status-chip{display:inline-block;padding:5px 13px;border-radius:50px;font-size:.73rem;font-weight:800;margin-top:7px;letter-spacing:.4px}
+.chip-attente{background:rgba(72,149,239,.15);border:1px solid rgba(72,149,239,.4);color:#7ab8f5}
+.chip-gagnant{background:rgba(44,198,83,.15);border:1px solid rgba(44,198,83,.4);color:var(--green)}
+.chip-perdu{background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--muted)}
+
+/* Tirage */
+.tirage-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+.yt-card{background:var(--card);border:1px solid rgba(230,57,70,.3);border-radius:var(--radius);padding:28px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:180px}
+.yt-icon-big{font-size:3rem;margin-bottom:10px}
+.yt-card-title{font-family:'Fredoka One',cursive;font-size:1.2rem;margin-bottom:6px}
+.yt-card-desc{font-size:.82rem;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.yt-btn{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:white;border:none;border-radius:50px;padding:11px 22px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.9rem;cursor:pointer;transition:all .3s;text-decoration:none}
+.yt-btn:hover{background:#ff4955;box-shadow:0 0 20px rgba(230,57,70,.5);transform:scale(1.04)}
+.tirage-info-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:22px}
+.tirage-info-title{font-family:'Fredoka One',cursive;font-size:1.1rem;color:var(--gold);margin-bottom:14px}
+.info-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border2);font-size:.86rem}
+.info-row:last-child{border-bottom:none}
+.info-row span{color:var(--muted)}
+.gold{color:var(--gold);font-weight:900}
+.simulator-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:26px}
+.sim-header{font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--gold);margin-bottom:18px}
+.sim-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.progress-wrap{background:rgba(255,255,255,.05);border-radius:50px;height:10px;overflow:hidden;margin-bottom:5px}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--gold3),var(--gold));border-radius:50px;transition:width .5s ease;box-shadow:0 0 10px rgba(255,165,0,.5)}
+.progress-label{font-size:.77rem;color:var(--muted);text-align:right;margin-bottom:18px}
+.balls-zone{display:flex;flex-wrap:wrap;gap:9px;min-height:75px;padding:14px;background:rgba(0,0,0,.3);border-radius:var(--radius-sm);border:1px dashed var(--border2);align-content:flex-start}
+.balls-placeholder{color:var(--muted);font-size:.87rem;padding:8px}
+.bball{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fredoka One',cursive;font-size:1rem;position:relative;animation:popIn .45s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(0) rotate(-180deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.bball::before{content:'';position:absolute;top:9px;left:11px;width:10px;height:7px;background:rgba(255,255,255,.35);border-radius:50%;transform:rotate(-30deg)}
+.bc1{background:radial-gradient(circle at 35% 35%,#FF9A9E,#C1121F);box-shadow:0 4px 12px rgba(193,18,31,.5)}
+.bc2{background:radial-gradient(circle at 35% 35%,#90CAFF,#2E6DBF);box-shadow:0 4px 12px rgba(46,109,191,.5)}
+.bc3{background:radial-gradient(circle at 35% 35%,#90FFB0,#1A8C3C);box-shadow:0 4px 12px rgba(26,140,60,.5)}
+.bc4{background:radial-gradient(circle at 35% 35%,#FFE87A,#CC9B00);box-shadow:0 4px 12px rgba(204,155,0,.5);color:#1A0A00}
+.bc5{background:radial-gradient(circle at 35% 35%,#D4A5FF,#6A0DAD);box-shadow:0 4px 12px rgba(106,13,173,.5)}
+
+/* Règles */
+.rules-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:22px}
+.rule-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;position:relative;overflow:hidden;transition:all .3s}
+.rule-card:hover{transform:translateY(-5px);border-color:var(--gold2)}
+.rule-num{font-family:'Fredoka One',cursive;font-size:4rem;color:rgba(255,215,0,.07);position:absolute;top:-5px;right:8px;line-height:1}
+.rule-ico{font-size:2.2rem;margin-bottom:10px}
+.rule-title{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--gold);margin-bottom:7px}
+.rule-desc{font-size:.84rem;color:var(--muted);line-height:1.6}
+.distrib-card,.odds-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:24px;margin-bottom:18px}
+.distrib-card h3,.odds-card h3{font-family:'Fredoka One',cursive;font-size:1.25rem;color:var(--gold);margin-bottom:16px}
+.distrib-bar{height:48px;border-radius:10px;overflow:hidden;display:flex;margin-bottom:16px;font-weight:900;font-size:.85rem}
+.distrib-j{background:linear-gradient(90deg,var(--gold3),var(--gold));width:60%;display:flex;align-items:center;justify-content:center;color:#1A0A00;gap:5px}
+.distrib-f{background:linear-gradient(90deg,#5533AA,#7B2FBE);width:40%;display:flex;align-items:center;justify-content:center;color:white;gap:5px}
+.distrib-legend{display:flex;gap:20px;flex-wrap:wrap}
+.dl-item{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--muted)}
+.dl-dot{width:13px;height:13px;border-radius:3px;flex-shrink:0}
+.odds-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.odds-item{background:var(--card2);border-radius:var(--radius-sm);padding:14px;text-align:center}
+.odds-val{font-family:'Fredoka One',cursive;font-size:1.4rem;color:var(--gold)}
+.odds-lab{font-size:.77rem;color:var(--muted);margin-top:4px;line-height:1.4}
+
+/* Auth prompt */
+.auth-prompt{text-align:center;padding:60px 20px}
+.auth-prompt-icon{font-size:4rem;margin-bottom:16px;opacity:.5}
+.auth-prompt h3{font-family:'Fredoka One',cursive;font-size:1.5rem;margin-bottom:8px}
+.auth-prompt p{color:var(--muted);margin-bottom:20px}
+
+/* Compte */
+.account-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin-bottom:22px}
+.acc-card{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:24px}
+.acc-card h3{font-family:'Fredoka One',cursive;font-size:1.15rem;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.form-group{margin-bottom:13px}
+.form-label{display:block;font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:5px}
+.form-input{width:100%;background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:'Nunito',sans-serif;font-size:.94rem;padding:10px 14px;border-radius:var(--radius-sm);outline:none;transition:all .25s}
+.form-input:focus{border-color:var(--gold2);box-shadow:0 0 0 3px rgba(255,165,0,.1)}
+.form-input::placeholder{color:var(--muted2)}
+.btn-form{width:100%;background:linear-gradient(135deg,var(--gold3),var(--gold));color:#1A0A00;border:none;border-radius:50px;padding:11px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.94rem;cursor:pointer;transition:all .3s;margin-top:4px}
+.btn-form:hover{box-shadow:var(--glow-gold);transform:scale(1.02)}
+.balance-display{text-align:center;padding:16px 0 18px}
+.balance-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px}
+.balance-val{font-family:'Fredoka One',cursive;font-size:2.8rem;color:var(--green)}
+.balance-sub{font-size:.8rem;color:var(--muted);margin-top:3px}
+.btn-withdraw{width:100%;background:linear-gradient(135deg,#1a5c30,var(--green));color:white;border:none;border-radius:50px;padding:11px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.94rem;cursor:pointer;transition:all .3s;margin-bottom:9px}
+.btn-withdraw:hover{box-shadow:var(--glow-green);transform:scale(1.02)}
+.btn-outline-sm{width:100%;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:'Nunito',sans-serif;font-weight:700;font-size:.87rem;padding:10px;border-radius:50px;cursor:pointer;transition:all .3s}
+.btn-outline-sm:hover{border-color:var(--gold);color:var(--gold)}
+.resp-card{background:var(--card);border:1px solid rgba(72,149,239,.2);border-radius:var(--radius);padding:22px;text-align:center}
+.resp-card h3{font-family:'Fredoka One',cursive;color:var(--blue);font-size:1.1rem;margin-bottom:9px}
+.resp-card p{font-size:.84rem;color:var(--muted);line-height:1.7}
+.tx-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border2);font-size:.83rem}
+.tx-item:last-child{border-bottom:none}
+
+/* Buttons commons */
+.btn-gold{background:linear-gradient(135deg,var(--gold3),var(--gold));color:#1A0A00;border:none;border-radius:50px;padding:11px 24px;font-family:'Nunito',sans-serif;font-weight:900;font-size:.92rem;cursor:pointer;transition:all .3s}
+.btn-gold:hover{box-shadow:var(--glow-gold);transform:scale(1.04)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:50px;padding:10px 22px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.9rem;cursor:pointer;transition:all .3s}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-outline-red{background:rgba(230,57,70,.12);border:1px solid rgba(230,57,70,.4);color:var(--red);border-radius:50px;padding:11px 22px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.9rem;cursor:pointer;transition:all .3s}
+.btn-outline-red:hover{background:rgba(230,57,70,.22)}
+.btn-header{background:var(--card2);border:1px solid var(--border2);color:var(--text);font-family:'Nunito',sans-serif;font-weight:800;font-size:.85rem;padding:9px 18px;border-radius:50px;cursor:pointer;transition:all .3s}
+.btn-header:hover{border-color:var(--gold);color:var(--gold)}
+.btn-header-gold{background:linear-gradient(135deg,var(--gold3),var(--gold));color:#1A0A00;border:none}
+.btn-header-gold:hover{box-shadow:var(--glow-gold);transform:scale(1.04);color:#1A0A00}
+.loading-cards{color:var(--muted);padding:40px;text-align:center}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(12px);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .35s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal-box{background:var(--card);border:2px solid var(--gold2);border-radius:28px;padding:36px;max-width:480px;width:100%;transform:scale(.85) translateY(20px);transition:transform .4s cubic-bezier(.34,1.3,.64,1);box-shadow:var(--glow-gold),var(--shadow);position:relative;max-height:90vh;overflow-y:auto}
+.modal-overlay.open .modal-box{transform:scale(1) translateY(0)}
+.modal-close{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;background:var(--card3);border:1px solid var(--border2);color:var(--muted);font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.modal-close:hover{border-color:var(--gold);color:var(--gold)}
+.modal-title{font-family:'Fredoka One',cursive;font-size:1.7rem;color:var(--gold);margin:12px 0 6px;text-align:center}
+.modal-sub{color:var(--muted);font-size:.87rem;margin-bottom:18px;text-align:center}
+.modal-emoji{display:block;font-size:4rem;text-align:center;animation:bounceEmoji 1s ease-in-out infinite}
+@keyframes bounceEmoji{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+.modal-amount{font-family:'Fredoka One',cursive;font-size:3rem;color:var(--gold);text-align:center;filter:drop-shadow(0 0 15px rgba(255,165,0,.7));margin-bottom:16px}
+.form-error{color:var(--red);font-size:.8rem;margin-top:4px}
+.form-success{color:var(--green);font-size:.8rem;margin-top:4px}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:26px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:9px}
+.toast{background:var(--card2);border:1px solid var(--border2);border-radius:14px;padding:13px 16px;display:flex;align-items:center;gap:11px;max-width:330px;box-shadow:0 12px 40px rgba(0,0,0,.6);animation:toastIn .4s cubic-bezier(.34,1.3,.64,1);font-size:.87rem;font-weight:600}
+@keyframes toastIn{from{transform:translateX(120%) scale(.9);opacity:0}to{transform:translateX(0) scale(1);opacity:1}}
+.toast.success{border-color:rgba(44,198,83,.4)}
+.toast.gold{border-color:rgba(255,165,0,.4)}
+.toast.info{border-color:rgba(72,149,239,.4)}
+.toast.error{border-color:rgba(230,57,70,.4)}
+.toast-ico{font-size:1.3rem}
+
+/* Confetti */
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:998;overflow:hidden}
+.cpaper{position:absolute;top:-20px;animation:cFall linear forwards;border-radius:2px}
+@keyframes cFall{0%{transform:translateY(0) rotate(0) scale(1);opacity:1}80%{opacity:1}100%{transform:translateY(110vh) rotate(720deg) scale(.5);opacity:0}}
+
+/* Footer */
+footer{text-align:center;padding:28px 20px;border-top:1px solid var(--border2);margin-top:20px;color:var(--muted2);font-size:.77rem;line-height:1.9}
+footer a{color:var(--muted);text-decoration:none;transition:color .2s}
+footer a:hover{color:var(--gold)}
+.footer-inner{max-width:1180px;margin:0 auto}
+
+@media(max-width:768px){
+  .tirage-grid{grid-template-columns:1fr}
+  .grille-item{grid-template-columns:1fr;gap:12px}
+  .grille-right{display:flex;align-items:center;gap:12px}
+  .packs-grid{grid-template-columns:1fr}
+  .account-grid{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+}

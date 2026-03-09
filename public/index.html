@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎱 Bingo Milou — Le bonheur en 20 numéros</title>
+<meta name="description" content="Jouez au Bingo Milou ! 20 numéros sur 99, jackpot progressif, tirage live sur YouTube.">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="atmosphere">
+  <div class="stars"></div>
+  <div id="floatBalls"></div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toastWrap"></div>
+<!-- CONFETTI -->
+<div class="confetti-wrap" id="confettiWrap"></div>
+
+<!-- MODAL GÉNÉRIQUE -->
+<div class="modal-overlay" id="mainModal">
+  <div class="modal-box" id="mainModalBox"></div>
+</div>
+
+<div class="page">
+
+  <!-- ============ HEADER ============ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <div class="logo">🎱 Bingo Milou</div>
+        <div class="logo-tag">Le bonheur en 20 numéros</div>
+      </div>
+      <div class="header-auth" id="headerAuth">
+        <!-- injecté par JS -->
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ NAV ============ -->
+  <nav class="site-nav" id="siteNav">
+    <button class="nav-btn active" data-section="boutique">🛒 Boutique</button>
+    <button class="nav-btn" data-section="mes-grilles">📋 Mes Grilles</button>
+    <button class="nav-btn" data-section="tirage">🎬 Tirage Live</button>
+    <button class="nav-btn" data-section="regles">📖 Règles</button>
+    <button class="nav-btn auth-required" data-section="compte" style="display:none">👤 Mon Compte</button>
+  </nav>
+
+  <!-- ============ JACKPOT HERO ============ -->
+  <div class="jackpot-hero">
+    <div class="jackpot-card">
+      <div class="jackpot-label">🏆 Jackpot Progressif — Tirage #<span id="tirageNum">48</span></div>
+      <div class="jackpot-amount" id="jackpotAmount">47 850 €</div>
+      <div class="jackpot-sub">
+        Augmente à chaque tirage sans gagnant
+        <span class="pill pill-green">+60% des mises</span>
+        <span class="pill pill-gold" id="tiragesSansGagnant">47 tirages reportés</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ STATS ============ -->
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">Prochain tirage</div><div class="stat-val" id="prochainTirage" style="font-size:1rem">Samedi 21h00</div></div>
+    <div class="stat-card"><div class="stat-icon">🎱</div><div class="stat-label">Format</div><div class="stat-val">20 / 99</div></div>
+    <div class="stat-card"><div class="stat-icon">🎟️</div><div class="stat-label">Grilles vendues</div><div class="stat-val" id="totalGrillesVendues">1 247</div></div>
+    <div class="stat-card"><div class="stat-icon">📺</div><div class="stat-label">Diffusion</div><div class="stat-val"><span class="live-tag"><span class="live-dot"></span>YouTube</span></div></div>
+    <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label">Sans gagnant</div><div class="stat-val" id="statSansGagnant">47</div></div>
+  </div>
+
+  <!-- ========================================
+       SECTIONS
+  ======================================== -->
+
+  <!-- ============ BOUTIQUE ============ -->
+  <section class="section active" id="s-boutique">
+    <div class="section-head"><h2>🛒 Choisissez votre pack</h2><div class="section-line"></div></div>
+
+    <div class="packs-grid" id="packsGrid">
+      <!-- Injecté par JS depuis l'API -->
+      <div class="loading-cards">Chargement des packs...</div>
+    </div>
+
+    <div class="info-bar">
+      🔒 Paiement sécurisé Stripe &nbsp;·&nbsp; 💳 CB, Visa, Mastercard, Apple Pay, Google Pay
+      &nbsp;·&nbsp; 📧 Confirmation immédiate par email &nbsp;·&nbsp; 🎟️ Grilles générées aléatoirement
+    </div>
+  </section>
+
+  <!-- ============ MES GRILLES ============ -->
+  <section class="section" id="s-mes-grilles">
+    <div class="section-head"><h2>📋 Mes Grilles</h2><div class="section-line"></div></div>
+
+    <div id="grillesAuthRequired" style="display:none">
+      <div class="auth-prompt">
+        <div class="auth-prompt-icon">🔐</div>
+        <h3>Connectez-vous pour voir vos grilles</h3>
+        <p>Créez un compte ou connectez-vous pour accéder à vos grilles.</p>
+        <button class="btn-gold" onclick="showLoginModal()">Se connecter</button>
+        <button class="btn-outline" onclick="showRegisterModal()" style="margin-left:10px">Créer un compte</button>
+      </div>
+    </div>
+
+    <div id="grillesLoggedIn" style="display:none">
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterGrilles('all',this)">Toutes</button>
+        <button class="filter-btn" onclick="filterGrilles('en_attente',this)">⏳ En attente</button>
+        <button class="filter-btn" onclick="filterGrilles('gagnant',this)">🏆 Gagnantes</button>
+        <button class="filter-btn" onclick="filterGrilles('perdu',this)">❌ Perdues</button>
+      </div>
+      <div id="grillesList"></div>
+    </div>
+  </section>
+
+  <!-- ============ TIRAGE LIVE ============ -->
+  <section class="section" id="s-tirage">
+    <div class="section-head"><h2>🎬 Tirage en Direct</h2><div class="section-line"></div></div>
+    <div class="tirage-grid">
+      <div class="yt-card">
+        <div class="yt-icon-big">📺</div>
+        <div class="yt-card-title">Diffusion YouTube Live</div>
+        <div class="yt-card-desc">Chaque samedi à 21h00 · Transparent · Certifié aléatoire</div>
+        <a class="yt-btn" id="ytLink" href="#" onclick="showToast('🔴 Le live YouTube sera disponible le soir du tirage !','info');return false">▶ Rejoindre le Live</a>
+      </div>
+      <div class="tirage-info-card">
+        <div class="tirage-info-title">ℹ️ Informations du tirage #<span id="tirageInfoNum">48</span></div>
+        <div class="info-row"><span>Boules disponibles</span><strong>99 (de 1 à 99)</strong></div>
+        <div class="info-row"><span>Boules tirées</span><strong>25 boules</strong></div>
+        <div class="info-row"><span>Numéros à trouver</span><strong>20 sur 25</strong></div>
+        <div class="info-row"><span>Jackpot actuel</span><strong class="gold" id="tirageJackpot">47 850 €</strong></div>
+        <div class="info-row"><span>Grilles en jeu</span><strong id="tirageGrilles">1 247</strong></div>
+      </div>
+    </div>
+
+    <div class="simulator-card">
+      <div class="sim-header">🎱 Simulateur de tirage</div>
+      <div class="sim-controls">
+        <button class="btn-gold" onclick="drawBall()" id="btnDraw">Tirer une boule</button>
+        <button class="btn-gold" onclick="toggleAuto()" id="btnAuto">Tirage auto ⚡</button>
+        <button class="btn-outline-red" onclick="resetSim()">🔄 Recommencer</button>
+      </div>
+      <div class="progress-wrap"><div class="progress-bar" id="simProgress" style="width:0%"></div></div>
+      <div class="progress-label" id="simLabel">0 / 25 boules tirées</div>
+      <div class="balls-zone" id="ballsZone"><span class="balls-placeholder">Les boules tirées apparaîtront ici ✨</span></div>
+    </div>
+    <div id="simResult" style="display:none;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius);padding:22px;text-align:center;margin-top:16px;font-size:1rem"></div>
+  </section>
+
+  <!-- ============ RÈGLES ============ -->
+  <section class="section" id="s-regles">
+    <div class="section-head"><h2>📖 Comment jouer</h2><div class="section-line"></div></div>
+    <div class="rules-grid">
+      <div class="rule-card"><div class="rule-num">1</div><div class="rule-ico">🛒</div><div class="rule-title">Achetez vos grilles</div><div class="rule-desc">Choisissez un pack. Chaque grille reçoit <strong>20 numéros</strong> tirés au hasard parmi 1 à 99. Paiement sécurisé par Stripe.</div></div>
+      <div class="rule-card"><div class="rule-num">2</div><div class="rule-ico">📺</div><div class="rule-title">Regardez en direct</div><div class="rule-desc">Suivez le tirage chaque samedi à 21h sur <strong>YouTube</strong>. 100% transparent, certifié aléatoire.</div></div>
+      <div class="rule-card"><div class="rule-num">3</div><div class="rule-ico">🎱</div><div class="rule-title">25 boules tirées</div><div class="rule-desc"><strong>25 boules</strong> sont tirées parmi les 99. Tous vos 20 numéros doivent en faire partie pour gagner.</div></div>
+      <div class="rule-card"><div class="rule-num">4</div><div class="rule-ico">🏆</div><div class="rule-title">Jackpot ou report</div><div class="rule-desc">Si vous avez les 20 numéros : <strong>jackpot total</strong> crédité sur votre compte. Sinon, il grossit !</div></div>
+    </div>
+    <div class="distrib-card">
+      <h3>💰 Répartition des mises</h3>
+      <div class="distrib-bar"><div class="distrib-j">🏆 60% → Jackpot</div><div class="distrib-f">🔧 40% → Frais</div></div>
+      <div class="distrib-legend">
+        <div class="dl-item"><span class="dl-dot" style="background:var(--gold)"></span>60% alimentent le jackpot progressif</div>
+        <div class="dl-item"><span class="dl-dot" style="background:var(--purple)"></span>40% couvrent les frais opérationnels</div>
+      </div>
+    </div>
+    <div class="odds-card">
+      <h3>📊 Probabilités</h3>
+      <div class="odds-grid">
+        <div class="odds-item"><div class="odds-val">~1/4,5M</div><div class="odds-lab">Probabilité par grille</div></div>
+        <div class="odds-item"><div class="odds-val">25 / 99</div><div class="odds-lab">Boules tirées</div></div>
+        <div class="odds-item"><div class="odds-val">20 / 25</div><div class="odds-lab">Numéros à cocher</div></div>
+        <div class="odds-item"><div class="odds-val">+60%</div><div class="odds-lab">Des mises au jackpot</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MON COMPTE ============ -->
+  <section class="section" id="s-compte">
+    <div class="section-head"><h2>👤 Mon Compte</h2><div class="section-line"></div></div>
+
+    <div id="compteNotAuth" style="display:none">
+      <div class="auth-prompt">
+        <div class="auth-prompt-icon">🔐</div>
+        <h3>Accès à votre espace personnel</h3>
+        <button class="btn-gold" onclick="showLoginModal()">Se connecter</button>
+        <button class="btn-outline" onclick="showRegisterModal()" style="margin-left:10px">Créer un compte</button>
+      </div>
+    </div>
+
+    <div id="compteAuth" style="display:none">
+      <div class="account-grid">
+        <!-- Profil -->
+        <div class="acc-card">
+          <h3>✏️ Profil</h3>
+          <div class="form-group"><label class="form-label">Prénom</label><input class="form-input" id="accPrenom" type="text"></div>
+          <div class="form-group"><label class="form-label">Nom</label><input class="form-input" id="accNom" type="text"></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="accEmail" type="email" disabled style="opacity:0.6"></div>
+          <div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" id="accTel" type="tel"></div>
+          <button class="btn-form" onclick="saveProfile()">Sauvegarder</button>
+        </div>
+        <!-- Solde -->
+        <div class="acc-card">
+          <h3>💰 Solde & Gains</h3>
+          <div class="balance-display">
+            <div class="balance-label">Solde disponible</div>
+            <div class="balance-val" id="soldeDisplay">0 €</div>
+            <div class="balance-sub" id="gainsTotaux">Gains totaux : 0 €</div>
+          </div>
+          <button class="btn-withdraw" onclick="showRetraitModal()">💸 Retirer mes gains</button>
+          <button class="btn-outline-sm" onclick="loadTransactions()">📋 Historique des achats</button>
+          <div id="transactionsList" style="margin-top:14px;display:none"></div>
+        </div>
+        <!-- Notifications & Sécurité -->
+        <div class="acc-card">
+          <h3>🔐 Sécurité</h3>
+          <div class="form-group"><label class="form-label">Mot de passe actuel</label><input class="form-input" id="pwdCurrent" type="password" placeholder="••••••••"></div>
+          <div class="form-group"><label class="form-label">Nouveau mot de passe</label><input class="form-input" id="pwdNew" type="password" placeholder="8 caractères min"></div>
+          <div class="form-group"><label class="form-label">Confirmer</label><input class="form-input" id="pwdConfirm" type="password" placeholder="••••••••"></div>
+          <button class="btn-form" onclick="changePassword()">Mettre à jour</button>
+          <hr style="border-color:var(--border2);margin:16px 0">
+          <button class="btn-outline-sm" style="color:var(--red);border-color:rgba(230,57,70,0.4)" onclick="logout()">🚪 Se déconnecter</button>
+        </div>
+      </div>
+      <div class="resp-card">
+        <h3>🔐 Jeu Responsable</h3>
+        <p>Bingo Milou s'engage pour un jeu sûr. Vous pouvez nous contacter pour définir des limites de dépenses. Le jeu est réservé aux personnes majeures (18+).</p>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /page -->
+
+<footer>
+  <div class="footer-inner">
+    🎱 <strong>Bingo Milou</strong> — Le bonheur en 20 numéros ✨<br><br>
+    <a href="#">Mentions légales</a> · <a href="#">CGU</a> · <a href="#">Confidentialité</a> · <a href="#">Jeu responsable</a> · <a href="#">Contact</a><br><br>
+    © 2026 Bingo Milou · Jeu de loterie · 18+ uniquement · Paiements sécurisés par <strong>Stripe</strong>
+  </div>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
