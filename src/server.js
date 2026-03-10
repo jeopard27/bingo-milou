@@ -1,6 +1,3 @@
-/**
- * BINGO MILOU — Serveur Principal
- */
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,92 +7,34 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.set('trust proxy', 1);
----
-
-## 🔴 Problème 2 — Clé Stripe invalide
-
-Dans les logs je vois : `sk_test_********************RIPE` — la clé est **coupée/incorrecte**.
-
-Sur Railway → **Variables** → cherchez `STRIPE_SECRET_KEY` → cliquez dessus et **recopiez votre vraie clé Stripe complète** depuis [dashboard.stripe.com](https://dashboard.stripe.com) → Développeurs → Clés API.
-
-Elle doit ressembler à :
-```
-sk_test_51AbCdEfGhIjKlMnOpQrStUvWxYz...
-```
-*(une longue chaîne de ~100 caractères)*
-
----
-
-## 🔴 Problème 3 — Email timeout OVH
-
-Le port 465 est bloqué par Railway. Changez sur Railway → **Variables** :
-```
-SMTP_PORT = 587
-SMTP_HOST = ssl0.ovh.net
 const PORT = process.env.PORT || 3000;
 
-// ================================================================
-//  MIDDLEWARE
-// ================================================================
+app.use(cors({ origin: process.env.SITE_URL || 'http://localhost:3000', credentials: true }));
 
-app.use(cors({
-  origin: process.env.SITE_URL || 'http://localhost:3000',
-  credentials: true,
-}));
-
-// Webhook Stripe AVANT le json parser (besoin du raw body)
 const stripeRoutes = require('./stripe');
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
-
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Rate limiting
-const limiter = rateLimit({ windowMs: 15*60*1000, max: 200, message: 'Trop de requêtes' });
-const authLimiter = rateLimit({ windowMs: 15*60*1000, max: 20, message: 'Trop de tentatives de connexion' });
+const limiter = rateLimit({ windowMs: 15*60*1000, max: 200 });
+const authLimiter = rateLimit({ windowMs: 15*60*1000, max: 20 });
 app.use('/api/', limiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// ================================================================
-//  ROUTES API
-// ================================================================
-
 const { router: authRoutes } = require('./auth');
 const apiRoutes = require('./api');
-
 app.use('/api/auth', authRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api', apiRoutes);
 
-// ================================================================
-//  SPA — Toutes les autres routes servent index.html
-// ================================================================
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// ================================================================
-//  ERROR HANDLER
-// ================================================================
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Erreur interne du serveur' });
-});
-
-// ================================================================
-//  DÉMARRAGE
-// ================================================================
 app.listen(PORT, () => {
-  console.log(`
-  ╔══════════════════════════════════════════╗
-  ║  🎱  BINGO MILOU — Serveur démarré !     ║
-  ║  🌐  http://localhost:${PORT}               ║
-  ║  📦  Base de données : JSON (lowdb)       ║
-  ║  💳  Stripe : ${process.env.STRIPE_SECRET_KEY?.startsWith('sk_test') ? 'Mode TEST' : process.env.STRIPE_SECRET_KEY?.startsWith('sk_live') ? 'Mode LIVE' : 'Non configuré (démo)'}             ║
-  ╚══════════════════════════════════════════╝
-  `);
+  console.log(`🎱 BINGO MILOU démarré sur le port ${PORT}`);
 });
 
 module.exports = app;
