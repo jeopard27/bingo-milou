@@ -9,6 +9,29 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+app.set('trust proxy', 1);
+---
+
+## 🔴 Problème 2 — Clé Stripe invalide
+
+Dans les logs je vois : `sk_test_********************RIPE` — la clé est **coupée/incorrecte**.
+
+Sur Railway → **Variables** → cherchez `STRIPE_SECRET_KEY` → cliquez dessus et **recopiez votre vraie clé Stripe complète** depuis [dashboard.stripe.com](https://dashboard.stripe.com) → Développeurs → Clés API.
+
+Elle doit ressembler à :
+```
+sk_test_51AbCdEfGhIjKlMnOpQrStUvWxYz...
+```
+*(une longue chaîne de ~100 caractères)*
+
+---
+
+## 🔴 Problème 3 — Email timeout OVH
+
+Le port 465 est bloqué par Railway. Changez sur Railway → **Variables** :
+```
+SMTP_PORT = 587
+SMTP_HOST = ssl0.ovh.net
 const PORT = process.env.PORT || 3000;
 
 // ================================================================

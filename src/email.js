@@ -1,4 +1,4 @@
-/**
+secure: process.env.SMTP_PORT === '465'/
  * BINGO MILOU — Service Email
  */
 const nodemailer = require('nodemailer');
