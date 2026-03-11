@@ -264,7 +264,6 @@ async function doRegister() {
     if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
     currentUser = data.user;
     onAuthSuccess();
-    closeModal();
     openModal(`
   <div style="text-align:center;padding:20px">
     <div style="font-size:4rem">📧</div>
