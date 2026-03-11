@@ -263,14 +263,15 @@ async function doRegister() {
     const data = await res.json();
     if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
     currentUser = data.user;
-    onAuthSuccess();
-    openModal(`
+onAuthSuccess();
+closeModal();
+setTimeout(() => openModal(`
   <div style="text-align:center;padding:20px">
     <div style="font-size:4rem">📧</div>
     <div class="modal-title">Compte créé !</div>
     <div class="modal-sub">Un email de validation a été envoyé à <strong style="color:var(--gold)">${data.user.email}</strong><br><br>Cliquez sur le lien dans l'email pour activer votre compte.</div>
     <button class="btn-form" onclick="closeModal()" style="margin-top:16px">OK, j'ai compris !</button>
-  </div>`);
+  </div>`), 150);
   } catch { errEl.textContent = 'Erreur réseau'; errEl.style.display = 'block'; }
 }
 
