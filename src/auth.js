@@ -59,7 +59,7 @@ router.post('/register', async (req, res) => {
 
     // Email de vérification (non bloquant)
     try { 
-  await Emails.bienvenue(user, emailToken); 
+  Emails.bienvenue(user, verifyToken).catch(err => console.error('ERREUR EMAIL:', err.message)); 
   console.log('Email de bienvenue envoyé à:', user.email);
 } catch (e) { 
   console.error('ERREUR EMAIL:', e.message, e.code);
