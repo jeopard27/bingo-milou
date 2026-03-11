@@ -56,7 +56,6 @@ router.post('/retrait', authMiddleware, async (req, res) => {
     if (montant > user.solde) return res.status(400).json({ error: 'Solde insuffisant' });
     if (!iban || !titulaire) return res.status(400).json({ error: 'IBAN et titulaire requis' });
 
-    // Déduire du solde
     Users.update(user.id, { solde: user.solde - montant });
 
     const tx = Transactions.create({
@@ -86,7 +85,6 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
   try {
     const { adminKey, tirageNumero } = req.body;
 
-    // Vérification admin simple (en prod, utilisez un vrai système RBAC)
     if (adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Accès refusé' });
     }
@@ -95,7 +93,6 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
     const numTirage = tirageNumero || cfg.tirageNumero;
     const jackpotDepart = Jackpot.getMontant();
 
-    // Générer 25 boules aléatoires parmi 1-99
     const pool = Array.from({ length: 99 }, (_, i) => i + 1);
     const boules = [];
     while (boules.length < 25) {
@@ -104,24 +101,20 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
     }
     boules.sort((a, b) => a - b);
 
-    // Trouver les grilles gagnantes
     const grillesEnJeu = Grilles.findPendingByTirage(numTirage);
     const gagnantes = [];
 
     for (const grille of grillesEnJeu) {
       const numerosCoches = grille.numeros.filter(n => boules.includes(n));
       const estGagnant = verifierGagnant(grille.numeros, boules);
-
       Grilles.update(grille.id, {
         statut: estGagnant ? 'gagnant' : 'perdu',
         numerosCoches,
         boulestireees: boules,
       });
-
       if (estGagnant) gagnantes.push(grille);
     }
 
-    // Répartition jackpot si gagnants
     let montantParGagnant = 0;
     if (gagnantes.length > 0) {
       montantParGagnant = Math.floor(jackpotDepart / gagnantes.length * 100) / 100;
@@ -140,18 +133,14 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
           gagnantes.find(gg => gg.id === g.id).montantGagne = montantParGagnant;
         }
       }
-      // Réinitialiser jackpot
       Jackpot.update({ montant: 0, tiragesSansGagnant: 0 });
     } else {
-      // Pas de gagnant — incrémenter le compteur
       const j = Jackpot.get();
       Jackpot.update({ tiragesSansGagnant: (j.tiragesSansGagnant || 0) + 1 });
     }
 
-    // Incrémenter le numéro de tirage
     Config.update({ tirageNumero: numTirage + 1 });
 
-    // Notifier les joueurs par email (async)
     const usersNotifies = new Set();
     for (const grille of grillesEnJeu) {
       if (usersNotifies.has(grille.userId)) continue;
@@ -202,13 +191,12 @@ router.get('/stats', (req, res) => {
     partJackpot: cfg.partJackpot,
   });
 });
+
+// DELETE /api/admin/reset-users — Nettoyer la base (temporaire)
 router.delete('/admin/reset-users', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
-  const db = require('./database').getDB();
-  db.data.users = [];
-  db.data.grilles = [];
-  db.data.transactions = [];
-  db.write();
+  const { db } = require('./database');
+  db.set('users', []).set('grilles', []).set('transactions', []).write();
   res.json({ ok: true, message: 'Base nettoyée !' });
 });
 
