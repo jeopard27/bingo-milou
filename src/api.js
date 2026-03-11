@@ -202,5 +202,14 @@ router.get('/stats', (req, res) => {
     partJackpot: cfg.partJackpot,
   });
 });
+router.delete('/admin/reset-users', (req, res) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
+  const db = require('./database').getDB();
+  db.data.users = [];
+  db.data.grilles = [];
+  db.data.transactions = [];
+  db.write();
+  res.json({ ok: true, message: 'Base nettoyée !' });
+});
 
 module.exports = router;
