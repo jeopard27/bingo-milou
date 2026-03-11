@@ -261,11 +261,12 @@ async function doRegister() {
       body: JSON.stringify({ email, password, prenom, nom, telephone })
     });
     const data = await res.json();
+    console.log('REGISTER RESPONSE:', JSON.stringify(data));
     if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
     currentUser = data.user;
-onAuthSuccess();
-closeModal();
-showToast('📧 Compte créé ! Vérifiez votre email pour activer votre compte.', 'success');
+    onAuthSuccess();
+    closeModal();
+    showToast('📧 Compte créé ! Vérifiez votre email pour activer votre compte.', 'success');
   } catch { errEl.textContent = 'Erreur réseau'; errEl.style.display = 'block'; }
 }
 
