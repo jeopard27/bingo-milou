@@ -199,5 +199,11 @@ router.delete('/admin/reset-users', (req, res) => {
   db.set('users', []).set('grilles', []).set('transactions', []).write();
   res.json({ ok: true, message: 'Base nettoyée !' });
 });
+router.get('/admin/users', (req, res) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
+  const { db } = require('./database');
+  const users = db.get('users').value();
+  res.json({ count: users.length, users: users.map(u => ({ id: u.id, email: u.email, prenom: u.prenom, emailVerifie: u.emailVerifie, createdAt: u.createdAt })) });
+});
 
 module.exports = router;
