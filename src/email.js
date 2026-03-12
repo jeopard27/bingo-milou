@@ -1,18 +1,39 @@
-const nodemailer = require('nodemailer');
+/**
+ * BINGO MILOU — Emails via API HTTP Brevo (pas de SMTP)
+ */
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'ssl0.ovh.net',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  connectionTimeout: 5000,
-  greetingTimeout: 5000,
-  socketTimeout: 5000,
-  tls: { rejectUnauthorized: false }
-});
-
-const FROM = process.env.EMAIL_FROM || 'Bingo Milou <noreply@bingo-milou.fr>';
 const SITE = process.env.SITE_URL || 'http://localhost:3000';
+const FROM_EMAIL = 'hello@bingomilou.com';
+const FROM_NAME = 'Bingo Milou';
+
+async function sendEmail({ to, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.warn('BREVO_API_KEY non configurée — email non envoyé');
+    return;
+  }
+
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: FROM_NAME, email: FROM_EMAIL },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Brevo API error: ${response.status} — ${err}`);
+  }
+
+  return response.json();
+}
 
 const baseTemplate = (content) => `
 <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
@@ -47,8 +68,8 @@ const Emails = {
 
   async bienvenue(user, verifyToken) {
     const url = `${SITE}/api/auth/verify-email?token=${verifyToken}`;
-    await transporter.sendMail({
-      from: FROM, to: user.email,
+    await sendEmail({
+      to: user.email,
       subject: '🎱 Bienvenue chez Bingo Milou ! Confirmez votre email',
       html: baseTemplate(`
         <h2>Bonjour <span class="gold">${user.prenom}</span> ! 👋</h2>
@@ -68,8 +89,8 @@ const Emails = {
       </div>`
     ).join('') + (grilles.length > 3 ? `<p class="muted">... et ${grilles.length-3} autre(s) grille(s)</p>` : '');
 
-    await transporter.sendMail({
-      from: FROM, to: user.email,
+    await sendEmail({
+      to: user.email,
       subject: `🎟️ ${grilles.length} grille(s) achetée(s) — Bingo Milou`,
       html: baseTemplate(`
         <h2>Commande confirmée ! 🎉</h2>
@@ -102,8 +123,8 @@ const Emails = {
         </div>`;
     }).join('');
 
-    await transporter.sendMail({
-      from: FROM, to: user.email,
+    await sendEmail({
+      to: user.email,
       subject,
       html: baseTemplate(isWinner ? `
         <h2>🎉 FÉLICITATIONS <span class="gold">${user.prenom.toUpperCase()}</span> !</h2>
@@ -128,8 +149,8 @@ const Emails = {
 
   async resetPassword(user, token) {
     const url = `${SITE}/reset-password?token=${token}`;
-    await transporter.sendMail({
-      from: FROM, to: user.email,
+    await sendEmail({
+      to: user.email,
       subject: '🔐 Réinitialisation de mot de passe — Bingo Milou',
       html: baseTemplate(`
         <h2>Réinitialisation du mot de passe</h2>
@@ -142,8 +163,8 @@ const Emails = {
   },
 
   async notificationRetrait(user, montant) {
-    await transporter.sendMail({
-      from: FROM, to: user.email,
+    await sendEmail({
+      to: user.email,
       subject: `💸 Votre retrait de ${montant} € est en cours`,
       html: baseTemplate(`
         <h2>Demande de retrait confirmée</h2>
