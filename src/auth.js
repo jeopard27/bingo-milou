@@ -58,11 +58,7 @@ router.post('/register', async (req, res) => {
     });
 
     // Email de vérification (non bloquant)
-    try { 
-  Emails.bienvenue(user, user.emailToken).catch(err => console.error('ERREUR EMAIL:', err.message)); 
-} catch (e) { 
-  console.error('ERREUR EMAIL:', e.message, e.code);
-}
+    Emails.bienvenue(user, user.emailToken).catch(err => console.error('ERREUR EMAIL:', err.message));
 
     const token = signToken(user.id);
     res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production', maxAge: 7*24*60*60*1000 });
@@ -164,15 +160,37 @@ router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     const user = Users.findByEmail(email);
-    // Ne pas révéler si l'email existe
     if (user) {
       const token = uuidv4();
-      const expiry = new Date(Date.now() + 3600000).toISOString(); // 1h
+      const expiry = new Date(Date.now() + 3600000).toISOString();
       Users.update(user.id, { resetToken: token, resetExpiry: expiry });
-      try { await Emails.resetPassword(user, token); } catch (e) { console.warn('Email reset non envoyé:', e.message); }
+      Emails.resetPassword(user, token).catch(err => console.error('ERREUR EMAIL RESET:', err.message));
     }
     res.json({ success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé' });
   } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token et mot de passe requis' });
+    if (password.length < 8) return res.status(400).json({ error: 'Mot de passe trop court (8 car. min)' });
+
+    const users = Users.all();
+    const user = users.find(u => u.resetToken === token);
+
+    if (!user) return res.status(400).json({ error: 'Lien invalide ou expiré' });
+    if (new Date(user.resetExpiry) < new Date()) return res.status(400).json({ error: 'Lien expiré' });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    Users.update(user.id, { passwordHash, resetToken: null, resetExpiry: null });
+
+    res.json({ success: true, message: 'Mot de passe mis à jour avec succès' });
+  } catch (err) {
+    console.error('Reset password error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

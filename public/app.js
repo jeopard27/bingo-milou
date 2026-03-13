@@ -27,8 +27,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function handleURLParams() {
   const params = new URLSearchParams(window.location.search);
-  // Retour de paiement Stripe (démo ou vrai)
-  if (params.get('demo') === 'true' && params.get('transactionId')) {
+  const path = window.location.pathname;
+
+  if (path === '/reset-password' && params.get('token')) {
+    showResetPasswordModal(params.get('token'));
+  } else if (params.get('demo') === 'true' && params.get('transactionId')) {
     confirmDemoPayment(params.get('transactionId'), params.get('packId'), params.get('userId'));
   } else if (params.get('session_id')) {
     confirmStripePayment(params.get('session_id'));
@@ -37,8 +40,7 @@ function handleURLParams() {
   } else if (params.get('success') === 'email_verifie') {
     showToast('✅ Email vérifié ! Bienvenue chez Bingo Milou !', 'success');
   }
-  // Nettoyer l'URL
-  if (params.toString()) window.history.replaceState({}, '', '/');
+  if (params.toString()) window.history.replaceState({}, '', path === '/reset-password' ? '/reset-password' : '/');
 }
 
 // ================================================================
@@ -221,6 +223,17 @@ function showForgotModal() {
     <button class="btn-form" onclick="doForgot()">Envoyer le lien 📧</button>`);
 }
 
+function showResetPasswordModal(token) {
+  openModal(`
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title">🔐 Nouveau mot de passe</div>
+    <div class="modal-sub">Choisissez votre nouveau mot de passe</div>
+    <div class="form-group"><label class="form-label">Nouveau mot de passe</label><input class="form-input" id="resetPwd" type="password" placeholder="••••••••"></div>
+    <div class="form-group"><label class="form-label">Confirmer</label><input class="form-input" id="resetPwd2" type="password" placeholder="••••••••">
+    <div id="resetError" class="form-error" style="display:none"></div></div>
+    <button class="btn-form" onclick="doResetPassword('${token}')">Confirmer le nouveau mot de passe</button>`);
+}
+
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPwd').value;
@@ -238,7 +251,7 @@ async function doLogin() {
     currentUser = data.user;
     onAuthSuccess();
     closeModal();
-showToast('🎉 Bienvenue ' + data.user.prenom + ' !', 'success');
+    showToast('🎉 Bienvenue ' + data.user.prenom + ' !', 'success');
   } catch { errEl.textContent = 'Erreur réseau'; errEl.style.display = 'block'; }
 }
 
@@ -261,7 +274,6 @@ async function doRegister() {
       body: JSON.stringify({ email, password, prenom, nom, telephone })
     });
     const data = await res.json();
-    console.log('REGISTER RESPONSE:', JSON.stringify(data));
     if (!res.ok) { errEl.textContent = data.error; errEl.style.display = 'block'; return; }
     currentUser = data.user;
     onAuthSuccess();
@@ -281,6 +293,28 @@ async function doForgot() {
     msg.innerHTML = '<div class="form-success">✅ Si cet email existe, un lien a été envoyé !</div>';
     msg.style.display = 'block';
   } catch { msg.innerHTML = '<div class="form-error">Erreur réseau</div>'; msg.style.display = 'block'; }
+}
+
+async function doResetPassword(token) {
+  const password = document.getElementById('resetPwd').value;
+  const password2 = document.getElementById('resetPwd2').value;
+  const errEl = document.getElementById('resetError');
+  errEl.style.display = 'none';
+  if (password !== password2) { errEl.textContent = 'Les mots de passe ne correspondent pas'; errEl.style.display = 'block'; return; }
+  if (password.length < 8) { errEl.textContent = 'Minimum 8 caractères'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch(`${API}/api/auth/reset-password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      closeModal();
+      window.history.replaceState({}, '', '/');
+      showToast('✅ Mot de passe mis à jour ! Connectez-vous.', 'success');
+      showLoginModal();
+    } else { errEl.textContent = data.error; errEl.style.display = 'block'; }
+  } catch { errEl.textContent = 'Erreur réseau'; errEl.style.display = 'block'; }
 }
 
 // ================================================================
@@ -339,10 +373,8 @@ async function buyPack(packId) {
     const data = await res.json();
 
     if (data.demo) {
-      // Mode démo : pas de vrai Stripe
       showDemoPaymentModal(data, pack);
     } else if (data.url) {
-      // Redirection vers Stripe Checkout
       window.location.href = data.url;
     } else {
       showToast('❌ Erreur lors du paiement', 'error');
@@ -364,7 +396,7 @@ function showDemoPaymentModal(data, pack) {
       <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)"><span>${pack.qty} grille${pack.qty>1?'s':''} · Tirage du samedi</span><span>+${pack.winback} au jackpot</span></div>
     </div>
     <div style="background:rgba(255,165,0,.08);border:1px dashed rgba(255,165,0,.3);border-radius:var(--radius-sm);padding:12px;font-size:.8rem;color:var(--muted);margin-bottom:16px;line-height:1.5">
-      ℹ️ En production, vous seriez redirigé vers <strong>Stripe Checkout</strong> pour un paiement sécurisé (CB, Apple Pay, Google Pay...). Configurez votre clé Stripe dans <code>.env</code>.
+      ℹ️ En production, vous seriez redirigé vers <strong>Stripe Checkout</strong> pour un paiement sécurisé (CB, Apple Pay, Google Pay...).
     </div>
     <button class="btn-form" onclick="simulateDemoPayment('${data.transactionId}','${data.packId}')">
       ✅ Simuler le paiement (démo)
@@ -414,7 +446,6 @@ async function confirmDemoPayment(transactionId, packId, userId) {
 
 function showPurchaseSuccess(data) {
   const grilles = data.grilles || [];
-  const pack = data.pack || {};
   launchConfetti();
   openModal(`
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -744,6 +775,7 @@ window.logout = logout;
 window.doLogin = doLogin;
 window.doRegister = doRegister;
 window.doForgot = doForgot;
+window.doResetPassword = doResetPassword;
 window.simulateDemoPayment = simulateDemoPayment;
 window.drawBall = drawBall;
 window.toggleAuto = toggleAuto;
