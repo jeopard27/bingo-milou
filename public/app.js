@@ -6,7 +6,7 @@
 // ================================================================
 //  CONFIG
 // ================================================================
-const API = '';  // Même domaine
+const API = '';
 let currentUser = null;
 let allGrilles = [];
 let currentFilter = 'all';
@@ -66,8 +66,7 @@ function initNav() {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const key = btn.dataset.section;
-      showSection(key);
+      showSection(btn.dataset.section);
     });
   });
 }
@@ -136,12 +135,8 @@ function formatEur(v) {
 async function checkAuth() {
   try {
     const res = await fetch(`${API}/api/auth/me`, { credentials: 'include' });
-    if (res.ok) {
-      currentUser = await res.json();
-      onAuthSuccess();
-    } else {
-      onAuthLogout();
-    }
+    if (res.ok) { currentUser = await res.json(); onAuthSuccess(); }
+    else onAuthLogout();
   } catch { onAuthLogout(); }
 }
 
@@ -358,26 +353,34 @@ async function buyPack(packId) {
     return;
   }
   const pack = PACKS_DATA.find(p => p.id === packId);
-  // Ouvrir le sélecteur de numéros pour la première grille
   openSelecteurNumeros(pack, 1, []);
 }
 
 // ================================================================
-//  SÉLECTEUR DE NUMÉROS
+//  SÉLECTEUR DE NUMÉROS (achat + modification)
 // ================================================================
 let selectedNumbers = [];
 let currentPack = null;
 let currentGrilleIndex = 0;
-let allSelectedForPack = []; // tableau de tableaux : un par grille
+let allSelectedForPack = [];
+let editingGrilleId = null;
 
-function openSelecteurNumeros(pack, grilleIndex, previousGrids) {
+function openSelecteurNumeros(pack, grilleIndex, previousGrids, grilleId = null) {
   currentPack = pack;
   currentGrilleIndex = grilleIndex;
   allSelectedForPack = previousGrids;
+  editingGrilleId = grilleId;
   selectedNumbers = [];
 
-  closeModal();
+  if (grilleId) {
+    const grille = allGrilles.find(g => g.id === grilleId);
+    if (grille) selectedNumbers = [...grille.numeros];
+  }
 
+  closeModal();
+  document.getElementById('selecteurOverlay')?.remove();
+
+  const isEdit = !!grilleId;
   const overlay = document.createElement('div');
   overlay.id = 'selecteurOverlay';
   overlay.style.cssText = `
@@ -391,7 +394,7 @@ function openSelecteurNumeros(pack, grilleIndex, previousGrids) {
     ">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <h2 style="color:#FFD700;font-family:'Fredoka One',cursive;font-size:1.4rem">
-          🎯 Grille ${grilleIndex} / ${pack.qty}
+          ${isEdit ? '✏️ Modifier ma grille' : `🎯 Grille ${grilleIndex} / ${pack.qty}`}
         </h2>
         <button onclick="closeSelecteur()" style="
           background:rgba(255,255,255,0.08);border:none;border-radius:8px;
@@ -399,15 +402,14 @@ function openSelecteurNumeros(pack, grilleIndex, previousGrids) {
         ">✕</button>
       </div>
       <p style="color:#8B7FC0;font-size:0.83rem;margin-bottom:18px">
-        Cliquez sur 20 numéros parmi les 99 disponibles
+        ${isEdit ? 'Modifiez vos numéros avant le prochain tirage' : 'Cliquez sur 20 numéros parmi les 99 disponibles'}
       </p>
 
-      <!-- Compteur -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
         <div id="selectCount" style="
           background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);
           border-radius:20px;padding:6px 16px;font-weight:900;color:#FFD700;font-size:0.9rem;
-        ">0 / 20</div>
+        ">${selectedNumbers.length} / 20</div>
         <button onclick="randomFill()" style="
           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
           border-radius:20px;padding:6px 14px;color:#8B7FC0;font-size:0.8rem;
@@ -420,40 +422,31 @@ function openSelecteurNumeros(pack, grilleIndex, previousGrids) {
         ">🗑 Vider</button>
       </div>
 
-      <!-- Grille 99 numéros -->
       <div id="selectGrid" style="
-        display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-bottom:16px;
+        display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-bottom:20px;
       "></div>
 
-      <!-- Info doublons -->
-      <div id="similairesInfo" style="
-        min-height:28px;font-size:0.8rem;color:#8B7FC0;
-        background:rgba(255,255,255,0.03);border-radius:10px;padding:8px 12px;
-        margin-bottom:16px;display:none;
-      "></div>
-
-      <!-- Actions -->
       <div style="display:flex;gap:10px">
-        ${grilleIndex > 1 ? `
+        ${!isEdit && grilleIndex > 1 ? `
         <button onclick="closeSelecteur()" style="
           flex:1;padding:13px;background:rgba(255,255,255,0.06);border:none;
           border-radius:12px;color:#F4F0FF;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;
         ">← Retour</button>` : ''}
-        <button id="btnValiderGrille" onclick="validerGrille()" disabled style="
+        <button id="btnValiderGrille" onclick="validerGrille()" style="
           flex:3;padding:13px;
           background:linear-gradient(135deg,#FFD700,#FFA500);
           border:none;border-radius:12px;color:#000;font-weight:900;
           cursor:pointer;font-family:'Nunito',sans-serif;font-size:1rem;
-          opacity:0.4;transition:opacity 0.2s;
+          transition:opacity 0.2s;
         ">
-          ${grilleIndex < pack.qty ? `Grille suivante →` : `Payer ${pack.prix} € — ${pack.qty} grille${pack.qty>1?'s':''} ✓`}
+          ${isEdit ? '✅ Enregistrer les modifications' : (grilleIndex < pack.qty ? `Grille suivante →` : `Payer ${pack.prix} € — ${pack.qty} grille${pack.qty>1?'s':''} ✓`)}
         </button>
       </div>
     </div>
   `;
 
   document.body.appendChild(overlay);
-  renderSelectGrid();
+  updateSelectUI();
 }
 
 function renderSelectGrid() {
@@ -498,11 +491,6 @@ function updateSelectUI() {
     btn.style.opacity = count === 20 ? '1' : '0.4';
     btn.style.cursor = count === 20 ? 'pointer' : 'not-allowed';
   }
-  if (count === 20) checkSimilaires();
-  else {
-    const info = document.getElementById('similairesInfo');
-    if (info) info.style.display = 'none';
-  }
 }
 
 function randomFill() {
@@ -520,40 +508,48 @@ function clearSelection() {
   updateSelectUI();
 }
 
-async function checkSimilaires() {
-  const info = document.getElementById('similairesInfo');
-  if (!info) return;
-  try {
-    const res = await fetch(`${API}/api/grilles/similaires?numeros=${selectedNumbers.join(',')}`);
-    const data = await res.json();
-    info.style.display = 'block';
-    if (data.similaires > 0) {
-      info.innerHTML = `⚠️ <strong style="color:#FFA500">${data.similaires} grille(s) identique(s)</strong> déjà jouée(s) pour ce tirage — le jackpot sera partagé en cas de victoire.`;
-    } else {
-      info.innerHTML = `✅ <span style="color:#2DC653">Aucune grille identique</span> pour ce tirage — vous seriez seul avec ces numéros !`;
-    }
-  } catch {}
-}
-
 async function validerGrille() {
   if (selectedNumbers.length !== 20) return;
+  const sorted = [...selectedNumbers].sort((a, b) => a - b);
 
-  const grilleSorted = [...selectedNumbers].sort((a, b) => a - b);
-  allSelectedForPack.push(grilleSorted);
+  // ── Mode édition ──
+  if (editingGrilleId) {
+    try {
+      const res = await fetch(`${API}/api/grilles/${editingGrilleId}/numeros`, {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numeros: sorted })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeSelecteur();
+        const idx = allGrilles.findIndex(g => g.id === editingGrilleId);
+        if (idx !== -1) allGrilles[idx].numeros = sorted;
+        renderGrillesList();
+        showToast('✅ Numéros mis à jour avec succès !', 'success');
+      } else {
+        showToast('❌ ' + data.error, 'error');
+      }
+    } catch { showToast('❌ Erreur réseau', 'error'); }
+    return;
+  }
 
-  // S'il reste des grilles à configurer
+  // ── Mode achat ──
+  allSelectedForPack.push(sorted);
   if (currentGrilleIndex < currentPack.qty) {
     openSelecteurNumeros(currentPack, currentGrilleIndex + 1, allSelectedForPack);
     return;
   }
-
-  // Toutes les grilles sont configurées → lancer le paiement
   closeSelecteur();
   lancerPaiement(currentPack, allSelectedForPack);
 }
 
 function closeSelecteur() {
   document.getElementById('selecteurOverlay')?.remove();
+}
+
+function editGrilleNumeros(grilleId) {
+  openSelecteurNumeros(null, 1, [], grilleId);
 }
 
 // ================================================================
@@ -575,9 +571,7 @@ async function lancerPaiement(pack, grilles) {
     } else {
       showToast('❌ Erreur lors du paiement', 'error');
     }
-  } catch {
-    showToast('❌ Erreur réseau', 'error');
-  }
+  } catch { showToast('❌ Erreur réseau', 'error'); }
 }
 
 function showDemoPaymentModal(data, pack, grilles) {
@@ -587,12 +581,12 @@ function showDemoPaymentModal(data, pack, grilles) {
     <div class="modal-title">Paiement Sécurisé</div>
     <div class="modal-sub">Mode démo — Stripe non configuré</div>
     <div style="background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:16px;margin:14px 0;text-align:left">
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Récapitulatif de commande</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Récapitulatif</div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>${pack.emoji} ${pack.label}</span><strong class="gold">${pack.prix} €</strong></div>
       <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)"><span>${pack.qty} grille${pack.qty>1?'s':''} · Tirage du samedi</span><span>+${pack.winback} au jackpot</span></div>
     </div>
     <div style="background:rgba(255,165,0,.08);border:1px dashed rgba(255,165,0,.3);border-radius:var(--radius-sm);padding:12px;font-size:.8rem;color:var(--muted);margin-bottom:16px;line-height:1.5">
-      ℹ️ En production, vous seriez redirigé vers <strong>Stripe Checkout</strong> pour un paiement sécurisé.
+      ℹ️ En production, vous seriez redirigé vers <strong>Stripe Checkout</strong>.
     </div>
     <button class="btn-form" onclick="simulateDemoPayment('${data.transactionId}','${data.packId}',${JSON.stringify(grilles)})">
       ✅ Simuler le paiement (démo)
@@ -610,12 +604,8 @@ async function simulateDemoPayment(transactionId, packId, grilles) {
       body: JSON.stringify({ transactionId, packId, userId: currentUser.id, grilles })
     });
     const data = await res.json();
-    if (res.ok) {
-      await loadStats();
-      showPurchaseSuccess(data);
-    } else {
-      showToast('❌ Erreur: ' + data.error, 'error');
-    }
+    if (res.ok) { await loadStats(); showPurchaseSuccess(data); }
+    else showToast('❌ Erreur: ' + data.error, 'error');
   } catch { showToast('❌ Erreur réseau', 'error'); }
 }
 
@@ -706,6 +696,7 @@ function renderGrillesList() {
   list.innerHTML = filtered.map(g => {
     const hits = (g.numerosCoches || []).length;
     const isWin = g.statut === 'gagnant';
+    const isPending = g.statut === 'en_attente';
     const chipClass = isWin ? 'chip-gagnant' : g.statut === 'perdu' ? 'chip-perdu' : 'chip-attente';
     const chipText = isWin ? '🏆 BINGO !' : g.statut === 'perdu' ? '❌ Non gagnant' : '⏳ En attente';
 
@@ -721,6 +712,19 @@ function renderGrillesList() {
       <div>
         <div class="grille-id">${g.id}</div>
         <div class="grille-date">Tirage #${g.tirageNumero} · ${new Date(g.createdAt).toLocaleDateString('fr-FR')}</div>
+        ${isPending ? `
+          <button onclick="editGrilleNumeros('${g.id}')" style="
+            margin-top:8px;
+            background:rgba(255,215,0,0.1);
+            border:1px solid rgba(255,215,0,0.3);
+            border-radius:8px;color:#FFD700;
+            font-size:0.75rem;font-weight:800;
+            padding:5px 12px;cursor:pointer;
+            font-family:'Nunito',sans-serif;transition:all 0.2s;
+          " onmouseover="this.style.background='rgba(255,215,0,0.2)'" onmouseout="this.style.background='rgba(255,215,0,0.1)'">
+            ✏️ Modifier mes numéros
+          </button>
+        ` : ''}
       </div>
       <div class="grille-nums">${cells}</div>
       <div class="grille-right">
@@ -889,7 +893,7 @@ function endSim() {
   const result = document.getElementById('simResult');
   result.style.display = 'block';
   if (!currentUser || allGrilles.length === 0) {
-    result.innerHTML = `<span style="font-size:1.4rem">🎱</span> Tirage terminé ! <strong style="color:var(--gold)">Boules :</strong> ${simBalls.join(', ')}. Connectez-vous et achetez des grilles pour voir si vous gagnez !`;
+    result.innerHTML = `<span style="font-size:1.4rem">🎱</span> Tirage terminé ! Connectez-vous et achetez des grilles pour voir si vous gagnez !`;
     return;
   }
   const winners = allGrilles.filter(g => g.statut === 'en_attente' && g.numeros.every(n => simBalls.includes(n)));
@@ -982,3 +986,4 @@ window.randomFill = randomFill;
 window.clearSelection = clearSelection;
 window.validerGrille = validerGrille;
 window.closeSelecteur = closeSelecteur;
+window.editGrilleNumeros = editGrilleNumeros;

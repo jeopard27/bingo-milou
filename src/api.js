@@ -54,7 +54,6 @@ function validerNumeros(numeros) {
 //  ROUTES PUBLIQUES
 // ================================================================
 
-// GET /api/jackpot — Info jackpot en temps réel
 router.get('/jackpot', (req, res) => {
   const j = Jackpot.get();
   const cfg = Config.get();
@@ -67,7 +66,6 @@ router.get('/jackpot', (req, res) => {
   });
 });
 
-// GET /api/stats — Statistiques globales
 router.get('/stats', (req, res) => {
   const j = Jackpot.get();
   const cfg = Config.get();
@@ -82,43 +80,16 @@ router.get('/stats', (req, res) => {
   });
 });
 
-// GET /api/grilles/similaires?numeros=1,2,3,... — Combien de grilles identiques existent
-router.get('/grilles/similaires', (req, res) => {
-  const raw = req.query.numeros;
-  if (!raw) return res.status(400).json({ error: 'Paramètre numeros requis' });
-
-  const numeros = raw.split(',').map(n => parseInt(n, 10));
-  const erreur = validerNumeros(numeros);
-  if (erreur) return res.status(400).json({ error: erreur });
-
-  const sorted = [...numeros].sort((a, b) => a - b);
-  const cfg = Config.get();
-
-  // Compter uniquement sur le tirage en cours
-  const count = db.get('grilles')
-    .filter(g => {
-      if (g.tirageNumero !== cfg.tirageNumero) return false;
-      const gSorted = [...(g.numeros || [])].sort((a, b) => a - b);
-      return JSON.stringify(gSorted) === JSON.stringify(sorted);
-    })
-    .size()
-    .value();
-
-  res.json({ similaires: count, tirageNumero: cfg.tirageNumero });
-});
-
 // ================================================================
 //  ROUTES PROTÉGÉES
 // ================================================================
 
-// GET /api/grilles — Mes grilles
 router.get('/grilles', authMiddleware, (req, res) => {
   const grilles = Grilles.findByUser(req.user.id);
   const cfg = Config.get();
   res.json({ grilles, tirageActuel: cfg.tirageNumero });
 });
 
-// GET /api/grilles/:id — Détail d'une grille
 router.get('/grilles/:id', authMiddleware, (req, res) => {
   const grille = Grilles.findById(req.params.id);
   if (!grille || grille.userId !== req.user.id)
@@ -126,63 +97,34 @@ router.get('/grilles/:id', authMiddleware, (req, res) => {
   res.json(grille);
 });
 
-// POST /api/grilles/personnalisee — Créer une grille avec ses propres numéros
-// (appelé après confirmation du paiement Stripe, avec les numéros choisis)
-router.post('/grilles/personnalisee', authMiddleware, async (req, res) => {
+// PUT /api/grilles/:id/numeros — Modifier les numéros d'une grille en attente
+router.put('/grilles/:id/numeros', authMiddleware, async (req, res) => {
   try {
-    const { numeros, transactionId, packId } = req.body;
-    const user = req.user;
+    const { numeros } = req.body;
+    const grille = Grilles.findById(req.params.id);
 
-    // Validation
+    if (!grille) return res.status(404).json({ error: 'Grille introuvable' });
+    if (grille.userId !== req.user.id) return res.status(403).json({ error: 'Accès refusé' });
+    if (grille.statut !== 'en_attente') return res.status(400).json({ error: 'Cette grille a déjà été jouée, impossible de modifier les numéros' });
+
     const erreur = validerNumeros(numeros);
     if (erreur) return res.status(400).json({ error: erreur });
 
-    // Vérifier que la transaction existe et appartient à cet utilisateur
-    if (transactionId) {
-      const tx = db.get('transactions').find({ id: transactionId, userId: user.id }).value();
-      if (!tx) return res.status(400).json({ error: 'Transaction invalide' });
-    }
-
-    const cfg = Config.get();
     const sorted = [...numeros].sort((a, b) => a - b);
+    Grilles.update(grille.id, { numeros: sorted });
 
-    // Compter les grilles similaires pour info
-    const similaires = db.get('grilles')
-      .filter(g => {
-        if (g.tirageNumero !== cfg.tirageNumero) return false;
-        const gSorted = [...(g.numeros || [])].sort((a, b) => a - b);
-        return JSON.stringify(gSorted) === JSON.stringify(sorted);
-      })
-      .size()
-      .value();
-
-    const grille = Grilles.create({
-      id: uuidv4(),
-      userId: user.id,
-      tirageNumero: cfg.tirageNumero,
-      numeros: sorted,
-      transactionId: transactionId || null,
-      packId: packId || 'personnalise',
-    });
-
-    // Incrémenter le compteur de grilles vendues
-    const j = Jackpot.get();
-    Jackpot.update({ totalGrillesVendues: (j.totalGrillesVendues || 0) + 1 });
-
-    res.json({ success: true, grille, similaires });
+    res.json({ success: true, grille: { ...grille, numeros: sorted } });
   } catch (err) {
-    console.error('Grille personnalisée error:', err);
+    console.error('Mise à jour numéros error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
 
-// GET /api/transactions — Historique des achats
 router.get('/transactions', authMiddleware, (req, res) => {
   const transactions = Transactions.findByUser(req.user.id);
   res.json({ transactions });
 });
 
-// POST /api/retrait — Demander un retrait
 router.post('/retrait', authMiddleware, async (req, res) => {
   try {
     const { montant, iban, titulaire } = req.body;
@@ -216,7 +158,6 @@ router.post('/retrait', authMiddleware, async (req, res) => {
 //  TIRAGE
 // ================================================================
 
-// POST /api/tirage/lancer — Lancer un tirage (admin seulement)
 router.post('/tirage/lancer', authMiddleware, async (req, res) => {
   try {
     const { adminKey, tirageNumero } = req.body;
@@ -312,7 +253,6 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/tirage/dernier
 router.get('/tirage/dernier', (req, res) => {
   const cfg = Config.get();
   res.json({ tirageNumero: cfg.tirageNumero, prochainTirage: getProchainTirage() });
@@ -322,26 +262,19 @@ router.get('/tirage/dernier', (req, res) => {
 //  BACKOFFICE ADMIN
 // ================================================================
 
-// GET /api/admin/users — Liste des joueurs
 router.get('/admin/users', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
   const users = db.get('users').value();
   res.json({
     count: users.length,
     users: users.map(u => ({
-      id: u.id,
-      email: u.email,
-      prenom: u.prenom,
-      nom: u.nom,
-      emailVerifie: u.emailVerifie,
-      solde: u.solde,
-      gainsTotaux: u.gainsTotaux,
-      createdAt: u.createdAt,
+      id: u.id, email: u.email, prenom: u.prenom, nom: u.nom,
+      emailVerifie: u.emailVerifie, solde: u.solde,
+      gainsTotaux: u.gainsTotaux, createdAt: u.createdAt,
     }))
   });
 });
 
-// GET /api/admin/grilles — Toutes les grilles avec nom du joueur
 router.get('/admin/grilles', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
   const grilles = db.get('grilles').value();
@@ -356,14 +289,12 @@ router.get('/admin/grilles', (req, res) => {
   res.json({ count: grillesAvecNom.length, grilles: grillesAvecNom });
 });
 
-// GET /api/admin/tirages — Historique des tirages
 router.get('/admin/tirages', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
   const tirages = db.get('tirages').value();
   res.json({ count: tirages.length, tirages });
 });
 
-// DELETE /api/admin/reset-users — Nettoyer la base (temporaire)
 router.delete('/admin/reset-users', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
   db.set('users', []).set('grilles', []).set('transactions', []).set('tirages', []).write();
