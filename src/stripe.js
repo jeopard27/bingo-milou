@@ -25,7 +25,7 @@ function getPacks() {
 // POST /api/stripe/checkout — Créer une session de paiement Stripe
 router.post('/checkout', authMiddleware, async (req, res) => {
   try {
-    const { packId } = req.body;
+    const { packId, grilles } = req.body; // grilles = tableau de tableaux de numéros choisis
     const packs = getPacks();
     const pack = packs[packId];
     if (!pack) return res.status(400).json({ error: 'Pack invalide' });
@@ -46,6 +46,20 @@ router.post('/checkout', authMiddleware, async (req, res) => {
       Users.update(user.id, { stripeCustomerId: customerId });
     }
 
+    // Stocker les numéros choisis dans la transaction en attente
+    // pour les récupérer après le paiement
+    Transactions.create({
+      id: transactionId,
+      userId: user.id,
+      type: 'achat_grille',
+      montant: pack.prix,
+      statut: 'en_attente',
+      packId: pack.id,
+      qtyGrilles: pack.qty,
+      numerosChoisis: grilles || null, // numéros choisis par le joueur
+      metadata: { packLabel: pack.label }
+    });
+
     // Créer la session Checkout Stripe
     const sessionParams = {
       mode: 'payment',
@@ -54,16 +68,16 @@ router.post('/checkout', authMiddleware, async (req, res) => {
       line_items: [{
         price_data: {
           currency: 'eur',
-          unit_amount: Math.round(pack.prix * 100), // en centimes
+          unit_amount: Math.round(pack.prix * 100),
           product_data: {
             name: `${pack.emoji} Bingo Milou — ${pack.label}`,
             description: `${pack.qty} grille(s) pour le prochain tirage · Format 20/99 · Jackpot actuel : ${Jackpot.getMontant().toLocaleString('fr-FR')} €`,
-            images: [`${SITE}/images/logo-bingo.png`],
           },
         },
         quantity: 1,
       }],
-      success_url: `${SITE}/paiement-success?session_id={CHECKOUT_SESSION_ID}`,
+      // ✅ Redirection vers la page principale après paiement
+      success_url: `${SITE}/?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${SITE}/?cancelled=true`,
       metadata: {
         userId: user.id,
@@ -82,28 +96,17 @@ router.post('/checkout', authMiddleware, async (req, res) => {
       session = await stripe.checkout.sessions.create(sessionParams);
     } catch (stripeErr) {
       // Mode démo si Stripe non configuré
-      console.warn('Stripe non configuré, mode démo');
+      console.warn('Stripe non configuré, mode démo:', stripeErr.message);
       return res.json({
         demo: true,
         sessionId: 'demo_' + transactionId,
         transactionId,
         packId,
-        redirectUrl: `${SITE}/paiement-success?demo=true&transactionId=${transactionId}&packId=${packId}&userId=${user.id}`,
       });
     }
 
-    // Enregistrer la transaction en attente
-    Transactions.create({
-      id: transactionId,
-      userId: user.id,
-      type: 'achat_grille',
-      montant: pack.prix,
-      statut: 'en_attente',
-      stripeSessionId: session.id,
-      packId: pack.id,
-      qtyGrilles: pack.qty,
-      metadata: { packLabel: pack.label }
-    });
+    // Mettre à jour la transaction avec le sessionId Stripe
+    Transactions.update(transactionId, { stripeSessionId: session.id });
 
     res.json({ sessionId: session.id, url: session.url });
   } catch (err) {
@@ -132,7 +135,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   res.json({ received: true });
 });
 
-// GET /api/stripe/success — Traitement succès (aussi appelé depuis l'URL de retour)
+// GET /api/stripe/success — Traitement succès depuis l'URL de retour
 router.get('/success', authMiddleware, async (req, res) => {
   try {
     const { session_id } = req.query;
@@ -141,7 +144,9 @@ router.get('/success', authMiddleware, async (req, res) => {
     // Vérifier si déjà traité
     const existing = Transactions.findByStripeSession(session_id);
     if (existing && existing.statut === 'complete') {
-      return res.json({ success: true, alreadyProcessed: true, transactionId: existing.id });
+      const grilles = require('./database').db.get('grilles')
+        .filter({ transactionId: existing.id }).value();
+      return res.json({ success: true, alreadyProcessed: true, grilles: grilles.map(g => ({ id: g.id, numeros: g.numeros })) });
     }
 
     // Vérifier avec Stripe
@@ -165,10 +170,21 @@ router.get('/success', authMiddleware, async (req, res) => {
 // POST /api/stripe/demo-success — Mode démo sans Stripe configuré
 router.post('/demo-success', authMiddleware, async (req, res) => {
   try {
-    const { transactionId, packId, userId } = req.body;
+    const { transactionId, packId, userId, grilles } = req.body;
     if (req.user.id !== userId) return res.status(403).json({ error: 'Interdit' });
 
-    const result = await handlePaymentSuccess({ userId, packId, transactionId, tirageNumero: String(Config.get().tirageNumero), demo: 'true' });
+    // Mettre à jour les numéros choisis si fournis
+    if (grilles) {
+      Transactions.update(transactionId, { numerosChoisis: grilles });
+    }
+
+    const result = await handlePaymentSuccess({
+      userId,
+      packId,
+      transactionId,
+      tirageNumero: String(Config.get().tirageNumero),
+      demo: 'true'
+    });
     res.json({ success: true, demo: true, ...result });
   } catch (err) {
     console.error('Demo success error:', err);
@@ -193,19 +209,27 @@ async function handlePaymentSuccess(metadata) {
   // Éviter le double traitement
   const existingTx = Transactions.findById(transactionId);
   if (existingTx && existingTx.statut === 'complete') {
-    return { alreadyProcessed: true, transactionId };
+    const grillesExistantes = require('./database').db.get('grilles')
+      .filter({ transactionId }).value();
+    return { alreadyProcessed: true, transactionId, grilles: grillesExistantes.map(g => ({ id: g.id, numeros: g.numeros })) };
   }
 
-  // Générer les grilles
-  const grilles = [];
+  // Récupérer les numéros choisis par le joueur (stockés lors du checkout)
+  const numerosChoisis = existingTx?.numerosChoisis || null;
   const numTirage = parseInt(tirageNumero) || cfg.tirageNumero;
 
+  // Générer les grilles avec les numéros choisis ou aléatoires
+  const grilles = [];
   for (let i = 0; i < pack.qty; i++) {
+    const numeros = (numerosChoisis && numerosChoisis[i])
+      ? numerosChoisis[i]           // numéros choisis par le joueur
+      : genererGrille();             // numéros aléatoires en fallback
+
     const grille = Grilles.create({
       id: 'GR-' + uuidv4().slice(0,8).toUpperCase(),
       userId,
       tirageNumero: numTirage,
-      numeros: genererGrille(),
+      numeros,
       transactionId,
       packId,
     });
@@ -221,11 +245,8 @@ async function handlePaymentSuccess(metadata) {
   Jackpot.update({ totalGrillesVendues: (Jackpot.get().totalGrillesVendues || 0) + pack.qty });
 
   // Email de confirmation (non bloquant)
-  try {
-    await Emails.confirmationAchat(user, existingTx || { id: transactionId, montant: pack.prix }, grilles);
-  } catch (e) {
-    console.warn('Email confirmation non envoyé:', e.message);
-  }
+  Emails.confirmationAchat(user, existingTx || { id: transactionId, montant: pack.prix }, grilles)
+    .catch(e => console.warn('Email confirmation non envoyé:', e.message));
 
   return { transactionId, grilles: grilles.map(g => ({ id: g.id, numeros: g.numeros })), pack };
 }
