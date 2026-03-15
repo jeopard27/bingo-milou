@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎱 Bingo Milou — Backoffice</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0f0f1a;
+  --card: #1a1a2e;
+  --card2: #16213e;
+  --border: rgba(255,255,255,0.08);
+  --gold: #FFD700;
+  --gold2: #FFA500;
+  --green: #2DC653;
+  --red: #E63946;
+  --blue: #4895EF;
+  --purple: #7B2FBE;
+  --text: #F4F0FF;
+  --muted: #8B7FC0;
+  --radius: 14px;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── SIDEBAR ── */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 240px;
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 0 24px 28px;
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--gold);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.sidebar-logo span { color: var(--text); font-size: 0.75rem; display: block; font-weight: 600; margin-top: 2px; opacity: 0.5; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.2s;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav-item.active { background: rgba(255,215,0,0.08); color: var(--gold); border-left-color: var(--gold); }
+.nav-item .icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+/* ── MAIN ── */
+.main {
+  margin-left: 240px;
+  flex: 1;
+  padding: 32px;
+}
+
+/* ── LOGIN ── */
+#loginScreen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px;
+  width: 360px;
+  text-align: center;
+}
+.login-box h1 { font-size: 1.6rem; font-weight: 900; color: var(--gold); margin-bottom: 6px; }
+.login-box p { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+.login-input {
+  width: 100%;
+  padding: 14px 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  margin-bottom: 16px;
+}
+.login-input:focus { outline: none; border-color: var(--gold); }
+.btn-login {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--gold), var(--gold2));
+  color: #000;
+  font-weight: 900;
+  font-size: 1rem;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-login:hover { opacity: 0.9; }
+.login-error { color: var(--red); font-size: 0.85rem; margin-top: 12px; display: none; }
+
+/* ── SECTIONS ── */
+.section { display: none; }
+.section.active { display: block; }
+
+.page-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+.page-subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 28px; }
+
+/* ── STATS CARDS ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+}
+.stat-card .stat-label { font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.stat-card .stat-value { font-size: 2rem; font-weight: 900; }
+.stat-card .stat-sub { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+.stat-card.gold .stat-value { color: var(--gold); }
+.stat-card.green .stat-value { color: var(--green); }
+.stat-card.blue .stat-value { color: var(--blue); }
+.stat-card.purple .stat-value { color: var(--purple); }
+
+/* ── TABLE ── */
+.table-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.table-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.table-header h3 { font-size: 1rem; font-weight: 800; }
+.search-input {
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  width: 220px;
+}
+.search-input:focus { outline: none; border-color: var(--gold); }
+
+table { width: 100%; border-collapse: collapse; }
+th {
+  padding: 12px 20px;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 14px 20px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.badge-green { background: rgba(45,198,83,0.15); color: var(--green); }
+.badge-red { background: rgba(230,57,70,0.15); color: var(--red); }
+.badge-gold { background: rgba(255,215,0,0.15); color: var(--gold); }
+.badge-blue { background: rgba(72,149,239,0.15); color: var(--blue); }
+.badge-muted { background: rgba(255,255,255,0.08); color: var(--muted); }
+
+/* ── GRILLE PREVIEW ── */
+.nums-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 300px;
+}
+.num-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255,215,0,0.15);
+  color: var(--gold);
+  font-size: 0.65rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── MODAL GRILLE ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.modal-box h3 { font-size: 1.1rem; font-weight: 900; margin-bottom: 20px; color: var(--gold); }
+
+.nums-grid {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.num-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.2);
+}
+.num-cell.selected {
+  background: rgba(255,215,0,0.2);
+  color: var(--gold);
+  border: 1px solid rgba(255,215,0,0.4);
+}
+.num-cell.hit {
+  background: rgba(45,198,83,0.2);
+  color: var(--green);
+  border: 1px solid rgba(45,198,83,0.4);
+}
+
+.btn-close {
+  padding: 10px 24px;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ── LOADER ── */
+.loader {
+  text-align: center;
+  padding: 48px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.spinner {
+  display: inline-block;
+  width: 24px; height: 24px;
+  border: 3px solid rgba(255,215,0,0.2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.filter-btn {
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.filter-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+.filter-btn.active { background: rgba(255,215,0,0.1); color: var(--gold); border-color: rgba(255,215,0,0.4); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-logo, .nav-item span { display: none; }
+  .main { margin-left: 60px; padding: 20px 16px; }
+  .nav-item { justify-content: center; padding: 14px; }
+  .nums-grid { grid-template-columns: repeat(10, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🎱 Backoffice</h1>
+    <p>Bingo Milou — Administration</p>
+    <input type="password" class="login-input" id="adminKeyInput" placeholder="Clé admin..." onkeydown="if(event.key==='Enter')login()">
+    <button class="btn-login" onclick="login()">Connexion</button>
+    <div class="login-error" id="loginError">Clé incorrecte</div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-logo">🎱 Milou <span>BACKOFFICE</span></div>
+    <div class="nav-item active" onclick="showSection('dashboard', this)"><span class="icon">📊</span><span>Dashboard</span></div>
+    <div class="nav-item" onclick="showSection('joueurs', this)"><span class="icon">👥</span><span>Joueurs</span></div>
+    <div class="nav-item" onclick="showSection('grilles', this)"><span class="icon">🎟️</span><span>Grilles</span></div>
+    <div class="nav-item" onclick="showSection('tirages', this)"><span class="icon">🎱</span><span>Tirages</span></div>
+  </nav>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="s-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-subtitle" id="dashDate">Chargement...</div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="loader"><div class="spinner"></div><br>Chargement...</div>
+      </div>
+    </div>
+
+    <!-- JOUEURS -->
+    <div class="section" id="s-joueurs">
+      <div class="page-title">Joueurs</div>
+      <div class="page-subtitle">Liste de tous les comptes inscrits</div>
+      <div class="table-card">
+        <div class="table-header">
+          <h3 id="joueursCount">Joueurs</h3>
+          <input class="search-input" id="searchJoueur" placeholder="🔍 Rechercher..." oninput="filterJoueurs()">
+        </div>
+        <div id="joueursTable"><div class="loader"><div class="spinner"></div><br>Chargement...</div></div>
+      </div>
+    </div>
+
+    <!-- GRILLES -->
+    <div class="section" id="s-grilles">
+      <div class="page-title">Grilles</div>
+      <div class="page-subtitle">Toutes les grilles jouées</div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterGrilles('all', this)">Toutes</button>
+        <button class="filter-btn" onclick="filterGrilles('en_attente', this)">⏳ En attente</button>
+        <button class="filter-btn" onclick="filterGrilles('gagnant', this)">🏆 Gagnantes</button>
+        <button class="filter-btn" onclick="filterGrilles('perdu', this)">❌ Perdantes</button>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <h3 id="grillesCount">Grilles</h3>
+          <input class="search-input" id="searchGrille" placeholder="🔍 Joueur / ID..." oninput="filterGrillesSearch()">
+        </div>
+        <div id="grillesTable"><div class="loader"><div class="spinner"></div><br>Chargement...</div></div>
+      </div>
+    </div>
+
+    <!-- TIRAGES -->
+    <div class="section" id="s-tirages">
+      <div class="page-title">Tirages</div>
+      <div class="page-subtitle">Historique des tirages effectués</div>
+      <div class="table-card">
+        <div id="tiragesTable"><div class="loader"><div class="spinner"></div><br>Chargement...</div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL GRILLE -->
+<div class="modal-overlay" id="grilleModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <h3 id="modalTitle">Détail de la grille</h3>
+    <div id="modalContent"></div>
+    <button class="btn-close" onclick="closeModal()">Fermer</button>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let ADMIN_KEY = '';
+let allJoueurs = [];
+let allGrilles = [];
+let grilleFilter = 'all';
+
+// ── LOGIN ────────────────────────────────────────────────────────────────
+async function login() {
+  const key = document.getElementById('adminKeyInput').value.trim();
+  if (!key) return;
+  const res = await fetch(`${API}/api/admin/users`, { headers: { 'x-admin-key': key } });
+  if (res.ok) {
+    ADMIN_KEY = key;
+    document.getElementById('loginScreen').style.display = 'none';
+    loadAll();
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────
+function showSection(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('s-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── LOAD ALL ─────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadDashboard(), loadJoueurs(), loadGrilles(), loadTirages()]);
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [statsRes, joueursRes, grillesRes] = await Promise.all([
+    fetch(`${API}/api/stats`),
+    fetch(`${API}/api/admin/users`, { headers: { 'x-admin-key': ADMIN_KEY } }),
+    fetch(`${API}/api/admin/grilles`, { headers: { 'x-admin-key': ADMIN_KEY } }),
+  ]);
+  const stats = await statsRes.json();
+  const joueurs = await joueursRes.json();
+  const grilles = await grillesRes.json();
+
+  document.getElementById('dashDate').textContent = `Prochain tirage : ${stats.prochainTirage}`;
+
+  const gagnantes = (grilles.grilles || []).filter(g => g.statut === 'gagnant').length;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card gold">
+      <div class="stat-label">💰 Jackpot actuel</div>
+      <div class="stat-value">${(stats.jackpot || 0).toLocaleString('fr-FR')} €</div>
+      <div class="stat-sub">${stats.tiragesSansGagnant} tirage(s) sans gagnant</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">👥 Joueurs inscrits</div>
+      <div class="stat-value">${joueurs.count || 0}</div>
+      <div class="stat-sub">Comptes créés</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">🎟️ Grilles vendues</div>
+      <div class="stat-value">${stats.totalGrillesVendues || 0}</div>
+      <div class="stat-sub">Total depuis le début</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-label">🏆 Grilles gagnantes</div>
+      <div class="stat-value">${gagnantes}</div>
+      <div class="stat-sub">Sur tous les tirages</div>
+    </div>
+  `;
+}
+
+// ── JOUEURS ───────────────────────────────────────────────────────────────
+async function loadJoueurs() {
+  const res = await fetch(`${API}/api/admin/users`, { headers: { 'x-admin-key': ADMIN_KEY } });
+  const data = await res.json();
+  allJoueurs = data.users || [];
+  renderJoueurs(allJoueurs);
+}
+
+function renderJoueurs(joueurs) {
+  document.getElementById('joueursCount').textContent = `${joueurs.length} joueur(s)`;
+  if (!joueurs.length) {
+    document.getElementById('joueursTable').innerHTML = '<div class="loader">Aucun joueur</div>';
+    return;
+  }
+  document.getElementById('joueursTable').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Prénom / Nom</th>
+        <th>Email</th>
+        <th>Email vérifié</th>
+        <th>Inscrit le</th>
+        <th>Grilles</th>
+      </tr></thead>
+      <tbody>${joueurs.map(u => `
+        <tr>
+          <td><strong>${u.prenom || ''} ${u.nom || ''}</strong></td>
+          <td style="color:var(--muted)">${u.email}</td>
+          <td><span class="badge ${u.emailVerifie ? 'badge-green' : 'badge-red'}">${u.emailVerifie ? '✓ Oui' : '✗ Non'}</span></td>
+          <td style="color:var(--muted)">${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
+          <td><span class="badge badge-blue" style="cursor:pointer" onclick="filterGrillesByUser('${u.id}','${u.prenom} ${u.nom}')">Voir grilles →</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+
+function filterJoueurs() {
+  const q = document.getElementById('searchJoueur').value.toLowerCase();
+  renderJoueurs(allJoueurs.filter(u =>
+    (u.email + ' ' + u.prenom + ' ' + u.nom).toLowerCase().includes(q)
+  ));
+}
+
+// ── GRILLES ───────────────────────────────────────────────────────────────
+async function loadGrilles() {
+  const res = await fetch(`${API}/api/admin/grilles`, { headers: { 'x-admin-key': ADMIN_KEY } });
+  const data = await res.json();
+  allGrilles = data.grilles || [];
+  renderGrilles();
+}
+
+function filterGrilles(statut, btn) {
+  grilleFilter = statut;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrilles();
+}
+
+function filterGrillesByUser(userId, nom) {
+  showSection('grilles', document.querySelectorAll('.nav-item')[2]);
+  grilleFilter = 'all';
+  document.getElementById('searchGrille').value = nom.trim();
+  renderGrilles(nom.trim());
+}
+
+function filterGrillesSearch() {
+  renderGrilles(document.getElementById('searchGrille').value);
+}
+
+function renderGrilles(search = '') {
+  let list = allGrilles;
+  if (grilleFilter !== 'all') list = list.filter(g => g.statut === grilleFilter);
+  if (search) {
+    const q = search.toLowerCase();
+    list = list.filter(g => (g.userId + ' ' + g.id).toLowerCase().includes(q) ||
+      (g.userNom || '').toLowerCase().includes(q));
+  }
+
+  document.getElementById('grillesCount').textContent = `${list.length} grille(s)`;
+  if (!list.length) {
+    document.getElementById('grillesTable').innerHTML = '<div class="loader">Aucune grille</div>';
+    return;
+  }
+
+  document.getElementById('grillesTable').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>ID Grille</th>
+        <th>Joueur</th>
+        <th>Tirage #</th>
+        <th>Statut</th>
+        <th>Doublons</th>
+        <th>Achetée le</th>
+        <th>Détail</th>
+      </tr></thead>
+      <tbody>${list.map(g => {
+        const doublon = allGrilles.filter(x => x.id !== g.id && JSON.stringify(x.numeros?.sort()) === JSON.stringify(g.numeros?.sort())).length;
+        return `<tr>
+          <td style="font-family:monospace;font-size:0.75rem;color:var(--muted)">${g.id.slice(0,12)}...</td>
+          <td><strong>${g.userNom || g.userId?.slice(0,8) || '—'}</strong></td>
+          <td style="color:var(--muted)">#${g.tirageNumero}</td>
+          <td><span class="badge ${g.statut==='gagnant'?'badge-gold':g.statut==='perdu'?'badge-red':g.statut==='en_attente'?'badge-blue':'badge-muted'}">
+            ${g.statut==='gagnant'?'🏆 Gagnant':g.statut==='perdu'?'❌ Perdu':g.statut==='en_attente'?'⏳ En attente':'—'}
+          </span></td>
+          <td>${doublon > 0 ? `<span class="badge badge-muted">⚠️ ${doublon} similaire(s)</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td style="color:var(--muted)">${new Date(g.createdAt).toLocaleDateString('fr-FR')}</td>
+          <td><button class="btn-close" style="padding:5px 12px;font-size:0.75rem" onclick="openGrille('${g.id}')">Voir</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>
+  `;
+}
+
+function openGrille(id) {
+  const g = allGrilles.find(x => x.id === id);
+  if (!g) return;
+
+  const boules = g.boulestireees || [];
+  const coches = g.numerosCoches || g.numeros || [];
+
+  const cells = Array.from({length: 99}, (_, i) => i + 1).map(n => {
+    const selected = g.numeros?.includes(n);
+    const hit = boules.length > 0 && selected && boules.includes(n);
+    return `<div class="num-cell ${hit ? 'hit' : selected ? 'selected' : ''}">${n < 10 ? '0'+n : n}</div>`;
+  }).join('');
+
+  document.getElementById('modalTitle').textContent = `Grille — Tirage #${g.tirageNumero}`;
+  document.getElementById('modalContent').innerHTML = `
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px">
+      Joueur : <strong style="color:var(--text)">${g.userNom || g.userId}</strong> &nbsp;|&nbsp;
+      Statut : <strong style="color:${g.statut==='gagnant'?'var(--gold)':g.statut==='perdu'?'var(--red)':'var(--blue)'}">
+        ${g.statut==='gagnant'?'🏆 BINGO':g.statut==='perdu'?'❌ Perdu':'⏳ En attente'}
+      </strong>
+      ${boules.length > 0 ? `&nbsp;|&nbsp; ${g.numeros.filter(n => boules.includes(n)).length}/20 numéros cochés` : ''}
+    </p>
+    <div class="nums-grid">${cells}</div>
+    <p style="font-size:0.75rem;color:var(--muted)">
+      🟡 Numéros de la grille &nbsp;&nbsp; 🟢 Coché lors du tirage
+    </p>
+  `;
+  document.getElementById('grilleModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('grilleModal').classList.remove('open');
+}
+
+// ── TIRAGES ───────────────────────────────────────────────────────────────
+async function loadTirages() {
+  const res = await fetch(`${API}/api/admin/tirages`, { headers: { 'x-admin-key': ADMIN_KEY } });
+  if (!res.ok) {
+    document.getElementById('tiragesTable').innerHTML = '<div class="loader">Aucun tirage effectué</div>';
+    return;
+  }
+  const data = await res.json();
+  const tirages = data.tirages || [];
+
+  if (!tirages.length) {
+    document.getElementById('tiragesTable').innerHTML = '<div class="loader">Aucun tirage effectué pour le moment</div>';
+    return;
+  }
+
+  document.getElementById('tiragesTable').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>N° Tirage</th>
+        <th>Date</th>
+        <th>Boules tirées</th>
+        <th>Résultat</th>
+      </tr></thead>
+      <tbody>${tirages.slice().reverse().map(t => `
+        <tr>
+          <td><strong>#${t.numero}</strong></td>
+          <td style="color:var(--muted)">${new Date(t.date).toLocaleString('fr-FR')}</td>
+          <td>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              ${(t.boules || []).map(n => `<span style="background:rgba(72,149,239,0.15);color:var(--blue);padding:2px 7px;border-radius:20px;font-size:0.7rem;font-weight:800">${n}</span>`).join('')}
+            </div>
+          </td>
+          <td><span class="badge ${t.aEuGagnant ? 'badge-gold' : 'badge-muted'}">${t.aEuGagnant ? '🏆 Gagnant' : '😢 Sans gagnant'}</span></td>
+        </tr>
+      `).join('')}</tbody>
+    </table>
+  `;
+}
+</script>
+</body>
+</html>

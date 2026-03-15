@@ -98,7 +98,7 @@ async function loadStats() {
     document.getElementById('statSansGagnant').textContent = data.tiragesSansGagnant || 0;
     document.getElementById('tirageNum').textContent = data.tirageNumero || 48;
     document.getElementById('tirageInfoNum').textContent = data.tirageNumero || 48;
-    document.getElementById('tiragesSansGagnant').textContent = `${data.tiragesSansGagnant || 47} tirages reportés`;
+    document.getElementById('tiragesSansGagnant').textContent = `${data.tiragesSansGagnant || 0} tirages reportés`;
     document.getElementById('prochainTirage').textContent = data.prochainTirage || 'Samedi 21h00';
     document.getElementById('tirageGrilles').textContent = (data.totalGrillesVendues || 0).toLocaleString('fr-FR');
     document.getElementById('tirageJackpot').textContent = formatEur(data.jackpot);
@@ -239,7 +239,6 @@ async function doLogin() {
   const password = document.getElementById('loginPwd').value;
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
-
   try {
     const res = await fetch(`${API}/api/auth/login`, {
       method: 'POST', credentials: 'include',
@@ -264,9 +263,7 @@ async function doRegister() {
   const password2 = document.getElementById('regPwd2').value;
   const errEl = document.getElementById('regError');
   errEl.style.display = 'none';
-
   if (password !== password2) { errEl.textContent = 'Les mots de passe ne correspondent pas'; errEl.style.display = 'block'; return; }
-
   try {
     const res = await fetch(`${API}/api/auth/register`, {
       method: 'POST', credentials: 'include',
@@ -360,31 +357,230 @@ async function buyPack(packId) {
     showLoginModal();
     return;
   }
-
   const pack = PACKS_DATA.find(p => p.id === packId);
-  showToast(`⏳ Création du paiement Stripe...`, 'info');
+  // Ouvrir le sélecteur de numéros pour la première grille
+  openSelecteurNumeros(pack, 1, []);
+}
 
+// ================================================================
+//  SÉLECTEUR DE NUMÉROS
+// ================================================================
+let selectedNumbers = [];
+let currentPack = null;
+let currentGrilleIndex = 0;
+let allSelectedForPack = []; // tableau de tableaux : un par grille
+
+function openSelecteurNumeros(pack, grilleIndex, previousGrids) {
+  currentPack = pack;
+  currentGrilleIndex = grilleIndex;
+  allSelectedForPack = previousGrids;
+  selectedNumbers = [];
+
+  closeModal();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'selecteurOverlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+  `;
+  overlay.innerHTML = `
+    <div style="
+      background:#160F2D;border:1px solid rgba(255,215,0,0.2);border-radius:24px;
+      padding:28px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;
+    ">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <h2 style="color:#FFD700;font-family:'Fredoka One',cursive;font-size:1.4rem">
+          🎯 Grille ${grilleIndex} / ${pack.qty}
+        </h2>
+        <button onclick="closeSelecteur()" style="
+          background:rgba(255,255,255,0.08);border:none;border-radius:8px;
+          color:#F4F0FF;font-size:1rem;padding:6px 12px;cursor:pointer;
+        ">✕</button>
+      </div>
+      <p style="color:#8B7FC0;font-size:0.83rem;margin-bottom:18px">
+        Cliquez sur 20 numéros parmi les 99 disponibles
+      </p>
+
+      <!-- Compteur -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div id="selectCount" style="
+          background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);
+          border-radius:20px;padding:6px 16px;font-weight:900;color:#FFD700;font-size:0.9rem;
+        ">0 / 20</div>
+        <button onclick="randomFill()" style="
+          background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+          border-radius:20px;padding:6px 14px;color:#8B7FC0;font-size:0.8rem;
+          font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;
+        ">🎲 Remplir au hasard</button>
+        <button onclick="clearSelection()" style="
+          background:rgba(230,57,70,0.08);border:1px solid rgba(230,57,70,0.2);
+          border-radius:20px;padding:6px 14px;color:#E63946;font-size:0.8rem;
+          font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;
+        ">🗑 Vider</button>
+      </div>
+
+      <!-- Grille 99 numéros -->
+      <div id="selectGrid" style="
+        display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin-bottom:16px;
+      "></div>
+
+      <!-- Info doublons -->
+      <div id="similairesInfo" style="
+        min-height:28px;font-size:0.8rem;color:#8B7FC0;
+        background:rgba(255,255,255,0.03);border-radius:10px;padding:8px 12px;
+        margin-bottom:16px;display:none;
+      "></div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:10px">
+        ${grilleIndex > 1 ? `
+        <button onclick="closeSelecteur()" style="
+          flex:1;padding:13px;background:rgba(255,255,255,0.06);border:none;
+          border-radius:12px;color:#F4F0FF;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;
+        ">← Retour</button>` : ''}
+        <button id="btnValiderGrille" onclick="validerGrille()" disabled style="
+          flex:3;padding:13px;
+          background:linear-gradient(135deg,#FFD700,#FFA500);
+          border:none;border-radius:12px;color:#000;font-weight:900;
+          cursor:pointer;font-family:'Nunito',sans-serif;font-size:1rem;
+          opacity:0.4;transition:opacity 0.2s;
+        ">
+          ${grilleIndex < pack.qty ? `Grille suivante →` : `Payer ${pack.prix} € — ${pack.qty} grille${pack.qty>1?'s':''} ✓`}
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  renderSelectGrid();
+}
+
+function renderSelectGrid() {
+  const grid = document.getElementById('selectGrid');
+  if (!grid) return;
+  grid.innerHTML = Array.from({length: 99}, (_, i) => i + 1).map(n => {
+    const sel = selectedNumbers.includes(n);
+    return `
+      <div onclick="toggleNum(${n})" style="
+        aspect-ratio:1;border-radius:7px;display:flex;align-items:center;justify-content:center;
+        font-size:0.67rem;font-weight:800;cursor:pointer;transition:all 0.12s;user-select:none;
+        background:${sel ? 'rgba(255,215,0,0.22)' : 'rgba(255,255,255,0.05)'};
+        color:${sel ? '#FFD700' : 'rgba(255,255,255,0.25)'};
+        border:1px solid ${sel ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.04)'};
+        transform:${sel ? 'scale(1.08)' : 'scale(1)'};
+      ">${n < 10 ? '0'+n : n}</div>
+    `;
+  }).join('');
+}
+
+function toggleNum(n) {
+  if (selectedNumbers.includes(n)) {
+    selectedNumbers = selectedNumbers.filter(x => x !== n);
+  } else {
+    if (selectedNumbers.length >= 20) {
+      showToast('⚠️ Vous avez déjà 20 numéros sélectionnés', 'info');
+      return;
+    }
+    selectedNumbers.push(n);
+  }
+  updateSelectUI();
+}
+
+function updateSelectUI() {
+  renderSelectGrid();
+  const count = selectedNumbers.length;
+  const countEl = document.getElementById('selectCount');
+  const btn = document.getElementById('btnValiderGrille');
+  if (countEl) countEl.textContent = `${count} / 20`;
+  if (btn) {
+    btn.disabled = count !== 20;
+    btn.style.opacity = count === 20 ? '1' : '0.4';
+    btn.style.cursor = count === 20 ? 'pointer' : 'not-allowed';
+  }
+  if (count === 20) checkSimilaires();
+  else {
+    const info = document.getElementById('similairesInfo');
+    if (info) info.style.display = 'none';
+  }
+}
+
+function randomFill() {
+  selectedNumbers = [];
+  const pool = Array.from({length: 99}, (_, i) => i + 1);
+  while (selectedNumbers.length < 20) {
+    const idx = Math.floor(Math.random() * pool.length);
+    selectedNumbers.push(pool.splice(idx, 1)[0]);
+  }
+  updateSelectUI();
+}
+
+function clearSelection() {
+  selectedNumbers = [];
+  updateSelectUI();
+}
+
+async function checkSimilaires() {
+  const info = document.getElementById('similairesInfo');
+  if (!info) return;
+  try {
+    const res = await fetch(`${API}/api/grilles/similaires?numeros=${selectedNumbers.join(',')}`);
+    const data = await res.json();
+    info.style.display = 'block';
+    if (data.similaires > 0) {
+      info.innerHTML = `⚠️ <strong style="color:#FFA500">${data.similaires} grille(s) identique(s)</strong> déjà jouée(s) pour ce tirage — le jackpot sera partagé en cas de victoire.`;
+    } else {
+      info.innerHTML = `✅ <span style="color:#2DC653">Aucune grille identique</span> pour ce tirage — vous seriez seul avec ces numéros !`;
+    }
+  } catch {}
+}
+
+async function validerGrille() {
+  if (selectedNumbers.length !== 20) return;
+
+  const grilleSorted = [...selectedNumbers].sort((a, b) => a - b);
+  allSelectedForPack.push(grilleSorted);
+
+  // S'il reste des grilles à configurer
+  if (currentGrilleIndex < currentPack.qty) {
+    openSelecteurNumeros(currentPack, currentGrilleIndex + 1, allSelectedForPack);
+    return;
+  }
+
+  // Toutes les grilles sont configurées → lancer le paiement
+  closeSelecteur();
+  lancerPaiement(currentPack, allSelectedForPack);
+}
+
+function closeSelecteur() {
+  document.getElementById('selecteurOverlay')?.remove();
+}
+
+// ================================================================
+//  PAIEMENT STRIPE
+// ================================================================
+async function lancerPaiement(pack, grilles) {
+  showToast('⏳ Création du paiement...', 'info');
   try {
     const res = await fetch(`${API}/api/stripe/checkout`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ packId })
+      body: JSON.stringify({ packId: pack.id, grilles })
     });
     const data = await res.json();
-
     if (data.demo) {
-      showDemoPaymentModal(data, pack);
+      showDemoPaymentModal(data, pack, grilles);
     } else if (data.url) {
       window.location.href = data.url;
     } else {
       showToast('❌ Erreur lors du paiement', 'error');
     }
-  } catch (e) {
+  } catch {
     showToast('❌ Erreur réseau', 'error');
   }
 }
 
-function showDemoPaymentModal(data, pack) {
+function showDemoPaymentModal(data, pack, grilles) {
   openModal(`
     <button class="modal-close" onclick="closeModal()">✕</button>
     <span class="modal-emoji">💳</span>
@@ -396,22 +592,22 @@ function showDemoPaymentModal(data, pack) {
       <div style="display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted)"><span>${pack.qty} grille${pack.qty>1?'s':''} · Tirage du samedi</span><span>+${pack.winback} au jackpot</span></div>
     </div>
     <div style="background:rgba(255,165,0,.08);border:1px dashed rgba(255,165,0,.3);border-radius:var(--radius-sm);padding:12px;font-size:.8rem;color:var(--muted);margin-bottom:16px;line-height:1.5">
-      ℹ️ En production, vous seriez redirigé vers <strong>Stripe Checkout</strong> pour un paiement sécurisé (CB, Apple Pay, Google Pay...).
+      ℹ️ En production, vous seriez redirigé vers <strong>Stripe Checkout</strong> pour un paiement sécurisé.
     </div>
-    <button class="btn-form" onclick="simulateDemoPayment('${data.transactionId}','${data.packId}')">
+    <button class="btn-form" onclick="simulateDemoPayment('${data.transactionId}','${data.packId}',${JSON.stringify(grilles)})">
       ✅ Simuler le paiement (démo)
     </button>
     <button class="btn-outline" style="display:block;width:100%;margin-top:10px;padding:11px" onclick="closeModal()">Annuler</button>`);
 }
 
-async function simulateDemoPayment(transactionId, packId) {
+async function simulateDemoPayment(transactionId, packId, grilles) {
   closeModal();
   showToast('⏳ Traitement du paiement...', 'info');
   try {
     const res = await fetch(`${API}/api/stripe/demo-success`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transactionId, packId, userId: currentUser.id })
+      body: JSON.stringify({ transactionId, packId, userId: currentUser.id, grilles })
     });
     const data = await res.json();
     if (res.ok) {
@@ -479,7 +675,6 @@ async function renderMesGrilles() {
   }
   document.getElementById('grillesAuthRequired').style.display = 'none';
   document.getElementById('grillesLoggedIn').style.display = 'block';
-
   try {
     const res = await fetch(`${API}/api/grilles`, { credentials: 'include' });
     const data = await res.json();
@@ -548,7 +743,6 @@ function renderCompte() {
   }
   document.getElementById('compteNotAuth').style.display = 'none';
   document.getElementById('compteAuth').style.display = 'block';
-
   document.getElementById('accPrenom').value = currentUser.prenom || '';
   document.getElementById('accNom').value = currentUser.nom || '';
   document.getElementById('accEmail').value = currentUser.email || '';
@@ -722,7 +916,7 @@ function closeModal() {
   document.body.style.overflow = '';
 }
 document.getElementById('mainModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeSelecteur(); } });
 
 // ================================================================
 //  TOAST
@@ -783,3 +977,8 @@ window.resetSim = resetSim;
 window.closeModal = closeModal;
 window.doRetrait = doRetrait;
 window.showToast = showToast;
+window.toggleNum = toggleNum;
+window.randomFill = randomFill;
+window.clearSelection = clearSelection;
+window.validerGrille = validerGrille;
+window.closeSelecteur = closeSelecteur;

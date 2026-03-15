@@ -12,25 +12,22 @@ const Emails = require('./email');
 // ── Calcule dynamiquement le prochain samedi à 21h00 ─────────────────────
 function getProchainTirage() {
   const now = new Date();
-  const day = now.getDay(); // 0=Dim, 6=Sam
+  const day = now.getDay();
   const next = new Date(now);
-
   if (day === 6 && now.getHours() < 21) {
-    // C'est samedi et pas encore 21h → c'est ce soir
+    // ce soir
   } else {
     const daysUntilSat = day === 6 ? 7 : (6 - day + 7) % 7;
     next.setDate(now.getDate() + daysUntilSat);
   }
-
   next.setHours(21, 0, 0, 0);
-
   const dateStr = next.toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
   return dateStr.charAt(0).toUpperCase() + dateStr.slice(1) + ' — 21h00';
 }
 
-// ── Compte le vrai nombre de grilles vendues depuis la DB ─────────────────
+// ── Compte le vrai nombre de grilles vendues ──────────────────────────────
 function getTotalGrillesVendues() {
   return db.get('grilles').size().value();
 }
@@ -41,7 +38,21 @@ function getTiragesSansGagnant() {
   return depuisDB || Jackpot.get().tiragesSansGagnant || 0;
 }
 
-// ---- PUBLIC ----
+// ── Valide une sélection de 20 numéros parmi 1-99 ─────────────────────────
+function validerNumeros(numeros) {
+  if (!Array.isArray(numeros)) return 'Les numéros doivent être un tableau';
+  if (numeros.length !== 20) return 'Vous devez choisir exactement 20 numéros';
+  const uniques = new Set(numeros);
+  if (uniques.size !== 20) return 'Les numéros doivent être tous différents';
+  for (const n of numeros) {
+    if (!Number.isInteger(n) || n < 1 || n > 99) return 'Chaque numéro doit être entre 1 et 99';
+  }
+  return null;
+}
+
+// ================================================================
+//  ROUTES PUBLIQUES
+// ================================================================
 
 // GET /api/jackpot — Info jackpot en temps réel
 router.get('/jackpot', (req, res) => {
@@ -56,7 +67,49 @@ router.get('/jackpot', (req, res) => {
   });
 });
 
-// ---- PROTÉGÉES ----
+// GET /api/stats — Statistiques globales
+router.get('/stats', (req, res) => {
+  const j = Jackpot.get();
+  const cfg = Config.get();
+  res.json({
+    jackpot: j.montant,
+    tiragesSansGagnant: getTiragesSansGagnant(),
+    totalGrillesVendues: getTotalGrillesVendues(),
+    prochainTirage: getProchainTirage(),
+    tirageNumero: cfg.tirageNumero,
+    prixGrille: cfg.prixPack1,
+    partJackpot: cfg.partJackpot,
+  });
+});
+
+// GET /api/grilles/similaires?numeros=1,2,3,... — Combien de grilles identiques existent
+router.get('/grilles/similaires', (req, res) => {
+  const raw = req.query.numeros;
+  if (!raw) return res.status(400).json({ error: 'Paramètre numeros requis' });
+
+  const numeros = raw.split(',').map(n => parseInt(n, 10));
+  const erreur = validerNumeros(numeros);
+  if (erreur) return res.status(400).json({ error: erreur });
+
+  const sorted = [...numeros].sort((a, b) => a - b);
+  const cfg = Config.get();
+
+  // Compter uniquement sur le tirage en cours
+  const count = db.get('grilles')
+    .filter(g => {
+      if (g.tirageNumero !== cfg.tirageNumero) return false;
+      const gSorted = [...(g.numeros || [])].sort((a, b) => a - b);
+      return JSON.stringify(gSorted) === JSON.stringify(sorted);
+    })
+    .size()
+    .value();
+
+  res.json({ similaires: count, tirageNumero: cfg.tirageNumero });
+});
+
+// ================================================================
+//  ROUTES PROTÉGÉES
+// ================================================================
 
 // GET /api/grilles — Mes grilles
 router.get('/grilles', authMiddleware, (req, res) => {
@@ -71,6 +124,56 @@ router.get('/grilles/:id', authMiddleware, (req, res) => {
   if (!grille || grille.userId !== req.user.id)
     return res.status(404).json({ error: 'Grille introuvable' });
   res.json(grille);
+});
+
+// POST /api/grilles/personnalisee — Créer une grille avec ses propres numéros
+// (appelé après confirmation du paiement Stripe, avec les numéros choisis)
+router.post('/grilles/personnalisee', authMiddleware, async (req, res) => {
+  try {
+    const { numeros, transactionId, packId } = req.body;
+    const user = req.user;
+
+    // Validation
+    const erreur = validerNumeros(numeros);
+    if (erreur) return res.status(400).json({ error: erreur });
+
+    // Vérifier que la transaction existe et appartient à cet utilisateur
+    if (transactionId) {
+      const tx = db.get('transactions').find({ id: transactionId, userId: user.id }).value();
+      if (!tx) return res.status(400).json({ error: 'Transaction invalide' });
+    }
+
+    const cfg = Config.get();
+    const sorted = [...numeros].sort((a, b) => a - b);
+
+    // Compter les grilles similaires pour info
+    const similaires = db.get('grilles')
+      .filter(g => {
+        if (g.tirageNumero !== cfg.tirageNumero) return false;
+        const gSorted = [...(g.numeros || [])].sort((a, b) => a - b);
+        return JSON.stringify(gSorted) === JSON.stringify(sorted);
+      })
+      .size()
+      .value();
+
+    const grille = Grilles.create({
+      id: uuidv4(),
+      userId: user.id,
+      tirageNumero: cfg.tirageNumero,
+      numeros: sorted,
+      transactionId: transactionId || null,
+      packId: packId || 'personnalise',
+    });
+
+    // Incrémenter le compteur de grilles vendues
+    const j = Jackpot.get();
+    Jackpot.update({ totalGrillesVendues: (j.totalGrillesVendues || 0) + 1 });
+
+    res.json({ success: true, grille, similaires });
+  } catch (err) {
+    console.error('Grille personnalisée error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 // GET /api/transactions — Historique des achats
@@ -110,17 +213,14 @@ router.post('/retrait', authMiddleware, async (req, res) => {
 });
 
 // ================================================================
-//  TIRAGE (Admin ou automatisé)
+//  TIRAGE
 // ================================================================
 
 // POST /api/tirage/lancer — Lancer un tirage (admin seulement)
 router.post('/tirage/lancer', authMiddleware, async (req, res) => {
   try {
     const { adminKey, tirageNumero } = req.body;
-
-    if (adminKey !== process.env.ADMIN_KEY) {
-      return res.status(403).json({ error: 'Accès refusé' });
-    }
+    if (adminKey !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Accès refusé' });
 
     const cfg = Config.get();
     const numTirage = tirageNumero || cfg.tirageNumero;
@@ -150,12 +250,13 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
 
     const aEuGagnant = gagnantes.length > 0;
 
-    // Enregistrer le tirage dans la collection tirages pour les compteurs
     db.get('tirages').push({
       id: uuidv4(),
       numero: numTirage,
       boules,
       aEuGagnant,
+      grillesEnJeu: grillesEnJeu.length,
+      gagnantes: gagnantes.length,
       date: new Date().toISOString(),
     }).write();
 
@@ -201,13 +302,9 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
     }
 
     res.json({
-      success: true,
-      tirageNumero: numTirage,
-      boules,
-      grillesEnJeu: grillesEnJeu.length,
-      gagnantes: gagnantes.length,
-      jackpotDepart,
-      montantParGagnant,
+      success: true, tirageNumero: numTirage, boules,
+      grillesEnJeu: grillesEnJeu.length, gagnantes: gagnantes.length,
+      jackpotDepart, montantParGagnant,
     });
   } catch (err) {
     console.error('Tirage error:', err);
@@ -215,25 +312,55 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/tirage/dernier — Résultat du dernier tirage
+// GET /api/tirage/dernier
 router.get('/tirage/dernier', (req, res) => {
   const cfg = Config.get();
   res.json({ tirageNumero: cfg.tirageNumero, prochainTirage: getProchainTirage() });
 });
 
-// GET /api/stats — Statistiques globales (public)
-router.get('/stats', (req, res) => {
-  const j = Jackpot.get();
-  const cfg = Config.get();
+// ================================================================
+//  BACKOFFICE ADMIN
+// ================================================================
+
+// GET /api/admin/users — Liste des joueurs
+router.get('/admin/users', (req, res) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
+  const users = db.get('users').value();
   res.json({
-    jackpot: j.montant,
-    tiragesSansGagnant: getTiragesSansGagnant(),
-    totalGrillesVendues: getTotalGrillesVendues(),
-    prochainTirage: getProchainTirage(),
-    tirageNumero: cfg.tirageNumero,
-    prixGrille: cfg.prixPack1,
-    partJackpot: cfg.partJackpot,
+    count: users.length,
+    users: users.map(u => ({
+      id: u.id,
+      email: u.email,
+      prenom: u.prenom,
+      nom: u.nom,
+      emailVerifie: u.emailVerifie,
+      solde: u.solde,
+      gainsTotaux: u.gainsTotaux,
+      createdAt: u.createdAt,
+    }))
   });
+});
+
+// GET /api/admin/grilles — Toutes les grilles avec nom du joueur
+router.get('/admin/grilles', (req, res) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
+  const grilles = db.get('grilles').value();
+  const grillesAvecNom = grilles.map(g => {
+    const user = db.get('users').find({ id: g.userId }).value();
+    return {
+      ...g,
+      userNom: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Inconnu',
+      userEmail: user?.email || '',
+    };
+  });
+  res.json({ count: grillesAvecNom.length, grilles: grillesAvecNom });
+});
+
+// GET /api/admin/tirages — Historique des tirages
+router.get('/admin/tirages', (req, res) => {
+  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
+  const tirages = db.get('tirages').value();
+  res.json({ count: tirages.length, tirages });
 });
 
 // DELETE /api/admin/reset-users — Nettoyer la base (temporaire)
@@ -241,12 +368,6 @@ router.delete('/admin/reset-users', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
   db.set('users', []).set('grilles', []).set('transactions', []).set('tirages', []).write();
   res.json({ ok: true, message: 'Base nettoyée !' });
-});
-
-router.get('/admin/users', (req, res) => {
-  if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
-  const users = db.get('users').value();
-  res.json({ count: users.length, users: users.map(u => ({ id: u.id, email: u.email, prenom: u.prenom, emailVerifie: u.emailVerifie, createdAt: u.createdAt })) });
 });
 
 module.exports = router;
