@@ -8,6 +8,27 @@ const { authMiddleware } = require('./auth');
 const { Users, Grilles, Transactions, Jackpot, Config, verifierGagnant } = require('./database');
 const Emails = require('./email');
 
+// ── Calcule dynamiquement le prochain samedi à 21h00 ─────────────────────
+function getProchainTirage() {
+  const now = new Date();
+  const day = now.getDay(); // 0=Dim, 6=Sam
+  const next = new Date(now);
+
+  if (day === 6 && now.getHours() < 21) {
+    // C'est samedi et pas encore 21h → c'est ce soir
+  } else {
+    const daysUntilSat = day === 6 ? 7 : (6 - day + 7) % 7;
+    next.setDate(now.getDate() + daysUntilSat);
+  }
+
+  next.setHours(21, 0, 0, 0);
+
+  const dateStr = next.toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  return dateStr.charAt(0).toUpperCase() + dateStr.slice(1) + ' — 21h00';
+}
+
 // ---- PUBLIC ----
 
 // GET /api/jackpot — Info jackpot en temps réel
@@ -18,7 +39,7 @@ router.get('/jackpot', (req, res) => {
     montant: j.montant,
     tiragesSansGagnant: j.tiragesSansGagnant,
     totalGrillesVendues: j.totalGrillesVendues,
-    prochainTirage: cfg.prochainTirage,
+    prochainTirage: getProchainTirage(),
     tirageNumero: cfg.tirageNumero,
   });
 });
@@ -174,7 +195,7 @@ router.post('/tirage/lancer', authMiddleware, async (req, res) => {
 // GET /api/tirage/dernier — Résultat du dernier tirage
 router.get('/tirage/dernier', (req, res) => {
   const cfg = Config.get();
-  res.json({ tirageNumero: cfg.tirageNumero, prochainTirage: cfg.prochainTirage });
+  res.json({ tirageNumero: cfg.tirageNumero, prochainTirage: getProchainTirage() });
 });
 
 // GET /api/stats — Statistiques globales (public)
@@ -185,7 +206,7 @@ router.get('/stats', (req, res) => {
     jackpot: j.montant,
     tiragesSansGagnant: j.tiragesSansGagnant,
     totalGrillesVendues: j.totalGrillesVendues,
-    prochainTirage: cfg.prochainTirage,
+    prochainTirage: getProchainTirage(),
     tirageNumero: cfg.tirageNumero,
     prixGrille: cfg.prixPack1,
     partJackpot: cfg.partJackpot,
@@ -199,6 +220,7 @@ router.delete('/admin/reset-users', (req, res) => {
   db.set('users', []).set('grilles', []).set('transactions', []).write();
   res.json({ ok: true, message: 'Base nettoyée !' });
 });
+
 router.get('/admin/users', (req, res) => {
   if (req.headers['x-admin-key'] !== process.env.ADMIN_KEY) return res.status(403).json({ error: 'Interdit' });
   const { db } = require('./database');
